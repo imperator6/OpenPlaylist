@@ -82,6 +82,22 @@ async function updateAutoplayState(enabled) {
   }
 }
 
+function formatRemainingTime(playback, currentItem) {
+  if (!playback || !currentItem) return "";
+  const durationMs = currentItem.duration_ms;
+  const progressMs = playback.progress_ms;
+  if (typeof durationMs !== "number" || typeof progressMs !== "number") {
+    return "";
+  }
+  const remainingMs = Math.max(0, durationMs - progressMs);
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  if (remainingSeconds < 60) {
+    return `${remainingSeconds}s`;
+  }
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 function formatArtists(artists = []) {
   return artists.map((artist) => artist.name).join(", ");
 }
@@ -102,7 +118,7 @@ function parseTrack(track) {
   };
 }
 
-function createQueueCard(item, label, index, isPlaying) {
+function createQueueCard(item, label, index, isPlaying, remainingText) {
   const node = queueCardTemplate.content.cloneNode(true);
   const card = node.querySelector(".queue-card");
   const img = node.querySelector("img");
@@ -116,7 +132,7 @@ function createQueueCard(item, label, index, isPlaying) {
 
   img.src = item.image;
   img.alt = item.title;
-  meta.textContent = label;
+  meta.textContent = remainingText ? `${label} - ${remainingText}` : label;
   title.textContent = item.title;
   artist.textContent = item.artist;
 
@@ -307,7 +323,10 @@ function renderPlayback(data) {
   const current = parseTrack(currentItem);
   currentPlaybackId = current?.id || null;
   nowPlaying.innerHTML = "";
-  nowPlaying.appendChild(createQueueCard(current, "Now playing", 0, isPlaying));
+  const remainingText = formatRemainingTime(playback, currentItem);
+  nowPlaying.appendChild(
+    createQueueCard(current, "Now playing", 0, isPlaying, remainingText)
+  );
 }
 
 function renderPlaylist(tracks) {
