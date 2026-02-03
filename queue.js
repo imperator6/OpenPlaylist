@@ -108,7 +108,10 @@ function createSearchCard(item) {
 
   card.classList.remove("no-action");
   button.textContent = "Place";
-  button.addEventListener("click", () => enterPlacementMode(item));
+  button.addEventListener("click", () => {
+    enterPlacementMode(item);
+    clearSearchResultsView();
+  });
 
   return node;
 }
@@ -263,6 +266,9 @@ function renderSearchResults(tracks) {
   });
 }
 
+function clearSearchResultsView() {
+  searchResults.innerHTML = "";
+}
 function clearSearchResults() {
   searchResults.innerHTML = "";
   searchInput.value = "";
