@@ -320,9 +320,13 @@ function renderPlayback(data) {
 
   if (!currentItem) {
     currentPlaybackId = null;
-    playbackStatus.textContent = "Paused";
-    playbackStatus.style.color = "#ffd36a";
-    playbackHint.textContent = "No active playback found.";
+    if (playbackStatus) {
+      playbackStatus.textContent = "Paused";
+      playbackStatus.style.color = "#ffd36a";
+    }
+    if (playbackHint) {
+      playbackHint.textContent = "No active playback found.";
+    }
     nowPlaying.innerHTML =
       '<p class="subtle">Nothing is playing right now.</p>';
     if (remainingTimerId) {
@@ -339,12 +343,16 @@ function renderPlayback(data) {
       : Boolean(data.queue && data.queue.is_playing);
   lastPlaybackIsPlaying = isPlaying;
   const status = isPlaying ? "Playing" : "Paused";
-  playbackStatus.textContent = status;
-  playbackStatus.style.color =
-    status === "Playing" ? "var(--accent)" : "#ffd36a";
-  playbackHint.textContent = isPlaying
-    ? "Audio is live right now."
-    : "Playback is currently paused.";
+  if (playbackStatus) {
+    playbackStatus.textContent = status;
+    playbackStatus.style.color =
+      status === "Playing" ? "var(--accent)" : "#ffd36a";
+  }
+  if (playbackHint) {
+    playbackHint.textContent = isPlaying
+      ? "Audio is live right now."
+      : "Playback is currently paused.";
+  }
 
   const current = parseTrack(currentItem);
   currentPlaybackId = current?.id || null;
