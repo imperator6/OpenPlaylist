@@ -34,7 +34,9 @@ const sharedQueue = {
   autoPlayEnabled: true,
   lastSeenTrackId: null,
   lastAdvanceAt: null,
-  lastError: null
+  lastError: null,
+  activeDeviceId: null,
+  activeDeviceName: null
 };
 const SERVICE_NAME = "spotify-server";
 
@@ -136,6 +138,8 @@ function readQueueStore() {
     sharedQueue.lastSeenTrackId = data.lastSeenTrackId || null;
     sharedQueue.lastAdvanceAt = data.lastAdvanceAt || null;
     sharedQueue.lastError = data.lastError || null;
+    sharedQueue.activeDeviceId = data.activeDeviceId || null;
+    sharedQueue.activeDeviceName = data.activeDeviceName || null;
     logInfo("Loaded queue store", {
       hasActivePlaylist: Boolean(sharedQueue.activePlaylistId),
       trackCount: sharedQueue.tracks.length,
@@ -157,7 +161,9 @@ function persistQueueStore() {
       autoPlayEnabled: sharedQueue.autoPlayEnabled,
       lastSeenTrackId: sharedQueue.lastSeenTrackId,
       lastAdvanceAt: sharedQueue.lastAdvanceAt,
-      lastError: sharedQueue.lastError
+      lastError: sharedQueue.lastError,
+      activeDeviceId: sharedQueue.activeDeviceId,
+      activeDeviceName: sharedQueue.activeDeviceName
     };
     fs.writeFileSync(QUEUE_STORE, JSON.stringify(data, null, 2));
   } catch (err) {
@@ -337,15 +343,19 @@ function getServerTrack(index) {
   return sharedQueue.tracks[index];
 }
 
-async function playTrackUri(uri) {
-  const response = await fetch("https://api.spotify.com/v1/me/player/play", {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${sharedSession.token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ uris: [uri] })
-  });
+async function playTrackUri(uri, deviceId) {
+  const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
+  const response = await fetch(
+    `https://api.spotify.com/v1/me/player/play${query}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${sharedSession.token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ uris: [uri] })
+    }
+  );
 
   if (!response.ok) {
     const text = await response.text();
@@ -437,7 +447,10 @@ async function autoPlayTick() {
         trackId: currentTrack.id || null,
         title: currentTrack.title || null
       });
-      const started = await playTrackUri(currentTrack.uri);
+      const started = await playTrackUri(
+        currentTrack.uri,
+        sharedQueue.activeDeviceId
+      );
       if (started) {
         sharedQueue.lastSeenTrackId = currentTrack.id || null;
         sharedQueue.lastAdvanceAt = now;
@@ -479,7 +492,10 @@ async function autoPlayTick() {
       trackId: nextTrack.id || null,
       title: nextTrack.title || null
     });
-    const started = await playTrackUri(nextTrack.uri);
+    const started = await playTrackUri(
+      nextTrack.uri,
+      sharedQueue.activeDeviceId
+    );
     if (started) {
       const previousIndex = sharedQueue.currentIndex;
       sharedQueue.currentIndex = nextIndex;
@@ -570,7 +586,10 @@ async function autoPlayTick() {
         trackId: nextTrack.id || null,
         title: nextTrack.title || null
       });
-      const started = await playTrackUri(nextTrack.uri);
+      const started = await playTrackUri(
+        nextTrack.uri,
+        sharedQueue.activeDeviceId
+      );
       if (started) {
         const previousIndex = sharedQueue.currentIndex;
         sharedQueue.currentIndex = nextIndex;
@@ -776,7 +795,11 @@ const server = http.createServer(async (req, res) => {
     sharedSession.redirectUri = null;
     persistSessionStore();
     logInfo("Host logged out");
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, {
+      ok: true,
+      activeDeviceId: sharedQueue.activeDeviceId,
+      activeDeviceName: sharedQueue.activeDeviceName
+    });
   }
 
   if (pathname === "/search") {
@@ -941,18 +964,23 @@ const server = http.createServer(async (req, res) => {
 
     const uri = body.uri || "";
     const trackId = body.trackId || "";
+    const deviceId = body.deviceId || sharedQueue.activeDeviceId || "";
     if (!uri) {
       return sendJson(res, 400, { error: "Missing track uri" });
     }
 
-    const response = await fetch("https://api.spotify.com/v1/me/player/play", {
+    const playQuery = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/play${playQuery}`,
+      {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${sharedSession.token}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ uris: [uri] })
-    });
+      }
+    );
 
     if (!response.ok) {
       const text = await response.text();
@@ -982,12 +1010,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 401, { error: "Not connected" });
     }
 
-    const response = await fetch("https://api.spotify.com/v1/me/player/pause", {
+    const pauseQuery = sharedQueue.activeDeviceId
+      ? `?device_id=${encodeURIComponent(sharedQueue.activeDeviceId)}`
+      : "";
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/pause${pauseQuery}`,
+      {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${sharedSession.token}`
       }
-    });
+      }
+    );
 
     if (!response.ok) {
       const text = await response.text();
@@ -1066,6 +1100,11 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 502, { error: "Spotify request failed" });
     }
 
+    sharedQueue.activeDeviceId = deviceId;
+    sharedQueue.activeDeviceName = body.deviceName || null;
+    sharedQueue.updatedAt = new Date().toISOString();
+    persistQueueStore();
+
     return sendJson(res, 200, { ok: true });
   }
 
@@ -1074,12 +1113,18 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 401, { error: "Not connected" });
     }
 
-    const response = await fetch("https://api.spotify.com/v1/me/player/play", {
+    const resumeQuery = sharedQueue.activeDeviceId
+      ? `?device_id=${encodeURIComponent(sharedQueue.activeDeviceId)}`
+      : "";
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/play${resumeQuery}`,
+      {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${sharedSession.token}`
       }
-    });
+      }
+    );
 
     if (!response.ok) {
       const text = await response.text();
@@ -1105,7 +1150,9 @@ const server = http.createServer(async (req, res) => {
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
       autoPlayEnabled: sharedQueue.autoPlayEnabled,
-      lastError: sharedQueue.lastError
+      lastError: sharedQueue.lastError,
+      activeDeviceId: sharedQueue.activeDeviceId,
+      activeDeviceName: sharedQueue.activeDeviceName
     });
   }
 
@@ -1146,7 +1193,10 @@ const server = http.createServer(async (req, res) => {
           if (playbackRes.status === 204) {
             const first = sharedQueue.tracks[0];
             if (first && first.uri) {
-              const started = await playTrackUri(first.uri);
+              const started = await playTrackUri(
+                first.uri,
+                sharedQueue.activeDeviceId
+              );
               if (started) {
                 sharedQueue.currentIndex = 0;
                 sharedQueue.lastSeenTrackId = first.id || null;
@@ -1168,7 +1218,10 @@ const server = http.createServer(async (req, res) => {
             if (matchIndex === -1) {
               const first = sharedQueue.tracks[0];
               if (first && first.uri) {
-                const started = await playTrackUri(first.uri);
+                const started = await playTrackUri(
+                  first.uri,
+                  sharedQueue.activeDeviceId
+                );
                 if (started) {
                   sharedQueue.currentIndex = 0;
                   sharedQueue.lastSeenTrackId = first.id || null;

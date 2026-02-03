@@ -33,6 +33,7 @@ let lastPlaybackIsPlaying = false;
 let remainingTimerId = null;
 let remainingState = null;
 let lastRemainingText = "";
+let selectedDeviceId = null;
 
 function setQueueStatus(message, showSaving) {
   if (showSaving) {
@@ -73,11 +74,12 @@ function renderDeviceOptions(devices, activeId) {
     return;
   }
 
+  const preferredId = selectedDeviceId || activeId;
   devices.forEach((device) => {
     const option = document.createElement("option");
     option.value = device.id;
     option.textContent = device.name;
-    if (device.id === activeId) {
+    if (device.id === preferredId) {
       option.selected = true;
     }
     deviceSelect.appendChild(option);
@@ -104,6 +106,9 @@ async function fetchDevices() {
     const data = await response.json();
     const devices = Array.isArray(data.devices) ? data.devices : [];
     const active = devices.find((device) => device.is_active);
+    if (!selectedDeviceId && active) {
+      selectedDeviceId = active.id;
+    }
     renderDeviceOptions(devices, active ? active.id : null);
   } catch (error) {
     console.error("Devices fetch error", error);
@@ -256,12 +261,12 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     nowActions.remove();
   }
 
-  if (playButton) {
-    playButton.addEventListener("click", () => {
-      if (!item.uri) return;
-      playSingleTrack(item.uri, item.id);
-    });
-  }
+      if (playButton) {
+        playButton.addEventListener("click", () => {
+          if (!item.uri) return;
+          playSingleTrack(item.uri, item.id);
+        });
+      }
 
   if (placementTrack) {
     card.classList.add("placement-mode");
@@ -647,6 +652,7 @@ async function fetchPlaylistTracks() {
     playlistTracks = data.tracks || [];
     autoPlayEnabled = Boolean(data.autoPlayEnabled);
     renderAutoplayState(autoPlayEnabled);
+    selectedDeviceId = data.activeDeviceId || null;
     if (data.lastError && data.lastError.message) {
       setQueueError(`Auto-play error: ${data.lastError.message}`);
     } else {
@@ -900,7 +906,11 @@ if (deviceSelect) {
       const response = await fetch("/api/player/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, play: true })
+        body: JSON.stringify({
+          deviceId,
+          deviceName: target.options[target.selectedIndex]?.textContent || "",
+          play: true
+        })
       });
 
       if (!response.ok) {
@@ -910,6 +920,7 @@ if (deviceSelect) {
         return;
       }
 
+      selectedDeviceId = deviceId;
       setDeviceStatus("Device switched.");
       await fetchPlayback();
     } catch (error) {
