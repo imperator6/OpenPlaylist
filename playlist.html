@@ -12,6 +12,7 @@
         <a href="index.html">Search</a>
         <a href="playlist.html" class="active">Playlist</a>
         <a href="queue.html">Waiting List</a>
+        <a href="recently.html">Recently Played</a>
         <a href="session.html">Session</a>
       </nav>
 
@@ -44,6 +45,33 @@
           </div>
         </div>
       </header>
+
+      <section class="playlist-search">
+        <div class="panel">
+          <div>
+            <p class="eyebrow">Discover</p>
+            <h2>Search public playlists</h2>
+            <p class="lede">
+              Search Spotify's public playlists and browse the results below.
+            </p>
+          </div>
+          <form id="playlist-search-form">
+            <label class="field" for="playlist-search-input">
+              <span>Search playlists</span>
+              <input
+                id="playlist-search-input"
+                name="q"
+                type="search"
+                placeholder="Try: summer chill, focus, synthwave"
+                autocomplete="off"
+              />
+            </label>
+            <button class="primary" type="submit">Search</button>
+          </form>
+          <p class="status" id="playlist-search-status"></p>
+          <ul class="playlist-results" id="playlist-search-results"></ul>
+        </div>
+      </section>
     </main>
 
     <script src="playlist.js"></script>

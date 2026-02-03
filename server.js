@@ -644,6 +644,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/queue" || pathname === "/queue.html") {
     return readStaticFile(path.join(__dirname, "queue.html"), res);
   }
+  if (pathname === "/recently" || pathname === "/recently.html") {
+    return readStaticFile(path.join(__dirname, "recently.html"), res);
+  }
   if (pathname === "/playlist" || pathname === "/playlist.html") {
     return readStaticFile(path.join(__dirname, "playlist.html"), res);
   }
@@ -658,6 +661,9 @@ const server = http.createServer(async (req, res) => {
   }
   if (pathname === "/queue.js") {
     return readStaticFile(path.join(__dirname, "queue.js"), res);
+  }
+  if (pathname === "/recently.js") {
+    return readStaticFile(path.join(__dirname, "recently.js"), res);
   }
   if (pathname === "/playlist.js") {
     return readStaticFile(path.join(__dirname, "playlist.js"), res);
@@ -711,7 +717,8 @@ const server = http.createServer(async (req, res) => {
         "user-read-playback-state user-read-currently-playing " +
         "playlist-read-private playlist-read-collaborative " +
         "playlist-modify-public playlist-modify-private " +
-        "user-read-private user-modify-playback-state",
+        "user-read-private user-modify-playback-state " +
+        "user-read-recently-played",
       state
     });
 
@@ -884,6 +891,43 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (pathname === "/api/recently-played") {
+    if (!(await ensureValidToken(sharedSession))) {
+      return sendJson(res, 401, { error: "Not connected" });
+    }
+
+    const limitRaw = Number(url.searchParams.get("limit"));
+    const limit =
+      Number.isInteger(limitRaw) && limitRaw > 0 && limitRaw <= 50
+        ? limitRaw
+        : 25;
+
+    const params = new URLSearchParams({
+      limit: String(limit)
+    });
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/recently-played?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${sharedSession.token}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      logError("Spotify recently played fetch failed", {
+        status: response.status,
+        body: text
+      });
+      return sendJson(res, 502, { error: "Spotify request failed" });
+    }
+
+    const data = await response.json();
+    return sendJson(res, 200, data);
+  }
+
   if (pathname === "/api/playlists") {
     if (!(await ensureValidToken(sharedSession))) {
       return sendJson(res, 401, { error: "Not connected" });
@@ -901,6 +945,51 @@ const server = http.createServer(async (req, res) => {
     if (!response.ok) {
       const text = await response.text();
       logError("Spotify playlists fetch failed", {
+        status: response.status,
+        body: text
+      });
+      return sendJson(res, 502, { error: "Spotify request failed" });
+    }
+
+    const data = await response.json();
+    return sendJson(res, 200, data);
+  }
+
+  if (pathname === "/api/playlists/search") {
+    if (!(await ensureValidToken(sharedSession))) {
+      return sendJson(res, 401, { error: "Not connected" });
+    }
+
+    const query = url.searchParams.get("q") || "";
+    if (!query.trim()) {
+      return sendJson(res, 400, { error: "Missing query" });
+    }
+
+    const limitRaw = Number(url.searchParams.get("limit"));
+    const limit =
+      Number.isInteger(limitRaw) && limitRaw > 0 && limitRaw <= 50
+        ? limitRaw
+        : 12;
+
+    const params = new URLSearchParams({
+      q: query,
+      type: "playlist",
+      limit: String(limit),
+      market: "from_token"
+    });
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/search?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${sharedSession.token}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      logError("Spotify playlist search failed", {
         status: response.status,
         body: text
       });

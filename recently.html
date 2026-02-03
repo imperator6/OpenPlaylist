@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recently Played</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <nav class="menu" aria-label="Primary">
+        <a href="index.html">Search</a>
+        <a href="playlist.html">Playlist</a>
+        <a href="queue.html">Waiting List</a>
+        <a href="recently.html" class="active">Recently Played</a>
+        <a href="session.html">Session</a>
+      </nav>
+
+      <header class="queue-hero">
+        <div>
+          <p class="eyebrow">Recently Played</p>
+          <h1>Tracks you just listened to</h1>
+          <p class="lede">
+            Pull the latest listening history from Spotify and refresh anytime.
+          </p>
+        </div>
+        <div class="panel">
+          <h2>Refresh</h2>
+          <p class="status" id="recent-status">Checking connection...</p>
+          <p class="hint" id="recent-hint">
+            Connect on the Session page to view history.
+          </p>
+          <div class="actions">
+            <button class="primary" id="recent-refresh-btn" type="button">
+              Refresh list
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section class="queue-section">
+        <div class="recent-list" id="recent-list"></div>
+      </section>
+    </main>
+
+    <template id="recent-card">
+      <article class="queue-card recent-card">
+        <span class="activity" aria-hidden="true"></span>
+        <div class="cover">
+          <img alt="" />
+        </div>
+        <div class="queue-body">
+          <p class="meta"></p>
+          <h3></h3>
+          <p class="artist"></p>
+        </div>
+        <div class="queue-play">
+          <p class="recent-time"></p>
+        </div>
+        <div class="queue-actions recent-actions">
+          <button
+            class="ghost recent-add"
+            type="button"
+            aria-label="Play again"
+            title="Play again"
+          >
+            Play next
+          </button>
+        </div>
+      </article>
+    </template>
+
+    <script src="recently.js"></script>
+  </body>
+</html>
