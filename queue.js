@@ -216,6 +216,7 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
   const artist = node.querySelector(".artist");
   const actions = node.querySelector(".queue-actions");
   const playButton = node.querySelector('[data-action="play"]');
+  const removeButton = node.querySelector('[data-action="remove"]');
   const nowActions = node.querySelector('[data-now-actions]');
   const togglePlayButton = node.querySelector('[data-action="toggle-play"]');
 
@@ -237,6 +238,9 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     card.classList.add("is-current");
     if (playButton) {
       playButton.remove();
+    }
+    if (removeButton) {
+      removeButton.remove();
     }
     if (togglePlayButton) {
       const icon = togglePlayButton.querySelector(".icon");
@@ -261,12 +265,25 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     nowActions.remove();
   }
 
-      if (playButton) {
-        playButton.addEventListener("click", () => {
-          if (!item.uri) return;
-          playSingleTrack(item.uri, item.id);
-        });
-      }
+  if (removeButton) {
+    const icon = removeButton.querySelector(".icon");
+    if (icon) {
+      icon.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M7 7l10 10M17 7l-10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>' +
+        "</svg>";
+    }
+    removeButton.addEventListener("click", () => {
+      removeTrackAt(index);
+    });
+  }
+
+  if (playButton) {
+    playButton.addEventListener("click", () => {
+      if (!item.uri) return;
+      playSingleTrack(item.uri, item.id);
+    });
+  }
 
   if (placementTrack) {
     card.classList.add("placement-mode");
@@ -523,6 +540,33 @@ function clearSearchResults() {
   searchResults.innerHTML = "";
   searchInput.value = "";
   exitPlacementMode();
+}
+
+async function removeTrackAt(index) {
+  if (!Number.isInteger(index)) return;
+  try {
+    setQueueStatus("Removing track...", true);
+    const response = await fetch("/api/queue/playlist/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ index })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Remove track failed", response.status, text);
+      setQueueStatus("Unable to remove track.");
+      return;
+    }
+
+    const data = await response.json();
+    playlistTracks = data.tracks || [];
+    renderPlaylist(playlistTracks);
+    setQueueStatus("Track removed.");
+  } catch (error) {
+    console.error("Remove track error", error);
+    setQueueStatus("Unable to remove track.");
+  }
 }
 
 async function fetchPlayback() {

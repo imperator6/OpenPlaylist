@@ -1489,6 +1489,45 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (pathname === "/api/queue/playlist/remove") {
+    let body = {};
+    try {
+      body = await readJsonBody(req);
+    } catch (err) {
+      logWarn("Invalid playlist remove payload", null, err);
+      return sendJson(res, 400, { error: "Invalid JSON payload" });
+    }
+
+    const index = Number(body.index);
+    if (
+      Number.isNaN(index) ||
+      index < 0 ||
+      index >= sharedQueue.tracks.length
+    ) {
+      return sendJson(res, 400, { error: "Invalid index" });
+    }
+
+    const removed = sharedQueue.tracks.splice(index, 1)[0];
+    if (Number.isInteger(sharedQueue.currentIndex)) {
+      if (index < sharedQueue.currentIndex) {
+        sharedQueue.currentIndex -= 1;
+      } else if (index === sharedQueue.currentIndex) {
+        sharedQueue.lastSeenTrackId = null;
+      }
+      if (sharedQueue.currentIndex >= sharedQueue.tracks.length) {
+        sharedQueue.currentIndex = Math.max(sharedQueue.tracks.length - 1, 0);
+      }
+    }
+    sharedQueue.updatedAt = new Date().toISOString();
+    persistQueueStore();
+
+    return sendJson(res, 200, {
+      ok: true,
+      removed: removed ? removed.id : null,
+      tracks: sharedQueue.tracks
+    });
+  }
+
   if (pathname === "/api/queue/playlist/reorder") {
     let body = {};
     try {
