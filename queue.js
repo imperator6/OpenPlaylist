@@ -90,34 +90,6 @@ function renderDeviceOptions(devices, activeId) {
   setDeviceStatus("");
 }
 
-async function fetchDevices() {
-  if (!deviceSelect) return;
-  try {
-    const response = await fetch("/api/player/devices");
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = SESSION_PAGE;
-        return;
-      }
-      const text = await response.text();
-      console.error("Devices fetch failed", response.status, text);
-      setDeviceStatus("Unable to load devices.");
-      return;
-    }
-
-    const data = await response.json();
-    const devices = Array.isArray(data.devices) ? data.devices : [];
-    const active = devices.find((device) => device.is_active);
-    if (!selectedDeviceId && active) {
-      selectedDeviceId = active.id;
-    }
-    renderDeviceOptions(devices, active ? active.id : null);
-  } catch (error) {
-    console.error("Devices fetch error", error);
-    setDeviceStatus("Unable to load devices.");
-  }
-}
-
 async function startDevicesLongPoll() {
   if (!deviceSelect) return;
   try {
@@ -609,41 +581,6 @@ async function removeTrackAt(index) {
   }
 }
 
-async function fetchPlayback() {
-  try {
-    const response = await fetch("/api/queue");
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = SESSION_PAGE;
-        return;
-      }
-      const text = await response.text();
-      console.error("Playback fetch failed", response.status, text);
-      if (playbackStatus) {
-        playbackStatus.textContent = "Disconnected";
-        playbackStatus.style.color = "#ff7a6c";
-      }
-      if (playbackHint) {
-        playbackHint.textContent =
-          "Connect Spotify on the Session page to load playback.";
-      }
-      return;
-    }
-
-    const data = await response.json();
-    renderPlayback(data);
-  } catch (error) {
-    console.error("Playback fetch error", error);
-    if (playbackStatus) {
-      playbackStatus.textContent = "Error";
-      playbackStatus.style.color = "#ff7a6c";
-    }
-    if (playbackHint) {
-      playbackHint.textContent = "Unable to load playback right now.";
-    }
-  }
-}
-
 async function startPlaybackLongPoll() {
   try {
     const query = playbackSince ? `?since=${encodeURIComponent(playbackSince)}` : "";
@@ -909,7 +846,6 @@ async function pausePlayback() {
       return;
     }
     await updateAutoplayState(false);
-    await fetchPlayback();
   } catch (error) {
     console.error("Pause playback error", error);
   }
@@ -924,7 +860,6 @@ async function resumePlayback() {
       return;
     }
     await updateAutoplayState(true);
-    await fetchPlayback();
   } catch (error) {
     console.error("Resume playback error", error);
   }
@@ -1047,7 +982,6 @@ if (deviceSelect) {
 
       selectedDeviceId = deviceId;
       setDeviceStatus("Device switched.");
-      await fetchPlayback();
     } catch (error) {
       console.error("Device transfer error", error);
       setDeviceStatus("Unable to switch device.");
@@ -1066,7 +1000,6 @@ clearSearchBtn.addEventListener("click", () => {
   setQueueStatus("Showing waiting list.");
 });
 
-fetchPlayback();
 startPlaybackLongPoll();
 fetchDefaultPlaylistId().then(fetchPlaylists);
 startDevicesLongPoll();

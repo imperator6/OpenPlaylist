@@ -77,43 +77,47 @@
             </div>
           </div>
           <p class="hint" id="home-device-status"></p>
-          <div class="home-track">
-            <div class="home-cover">
-              <img id="home-track-image" alt="" />
-            </div>
-            <div class="home-track-info">
-              <p class="meta" id="home-track-album"></p>
-              <h3 id="home-track-title">Nothing playing</h3>
-              <p class="artist" id="home-track-artist"></p>
-            </div>
-          </div>
-          <div class="home-controls">
-            <button
-              class="ghost home-play-toggle"
-              id="home-play-toggle"
-              type="button"
-              aria-label="Play"
-            >
-              <span class="icon" aria-hidden="true"></span>
-            </button>
-            <div class="home-progress">
-              <div class="home-times">
-                <span id="home-elapsed">0:00</span>
-                <span id="home-remaining">-0:00</span>
+          <section class="playback-widget" aria-live="polite">
+            <div class="playback-track">
+              <div class="home-cover">
+                <img id="home-track-image" alt="" />
               </div>
-              <input
-                class="home-progress-bar"
-                id="home-progress-bar"
-                type="range"
-                min="0"
-                max="100"
-                value="0"
-                disabled
-              />
+              <div class="home-track-info">
+                <p class="meta" id="home-track-album"></p>
+                <h3 id="home-track-title">Nothing playing</h3>
+                <p class="artist" id="home-track-artist"></p>
+              </div>
             </div>
-          </div>
-          <p class="status" id="home-playback-status"></p>
-          <p class="hint" id="home-playback-hint"></p>
+            <div class="playback-controls">
+              <button
+                class="ghost home-play-toggle"
+                id="home-play-toggle"
+                type="button"
+                aria-label="Play"
+              >
+                <span class="icon" aria-hidden="true"></span>
+              </button>
+              <div class="home-progress">
+                <div class="home-times">
+                  <span id="home-elapsed">0:00</span>
+                  <span id="home-remaining">-0:00</span>
+                </div>
+                <input
+                  class="home-progress-bar"
+                  id="home-progress-bar"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="0"
+                  disabled
+                />
+              </div>
+            </div>
+            <div class="playback-status">
+              <p class="status" id="home-playback-status"></p>
+              <p class="hint" id="home-playback-hint"></p>
+            </div>
+          </section>
         </div>
       </header>
     </main>

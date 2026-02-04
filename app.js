@@ -11,20 +11,16 @@ const homePlayToggle = document.getElementById("home-play-toggle");
 const homeProgressBar = document.getElementById("home-progress-bar");
 const homeElapsed = document.getElementById("home-elapsed");
 const homeRemaining = document.getElementById("home-remaining");
+const playbackWidget = document.querySelector(".playback-widget");
+const playbackTrack = document.querySelector(".playback-track");
+const playbackControls = document.querySelector(".playback-controls");
 const MENU_SESSION_PAGE = "session.html";
-const HOME_REFRESH_MS = 8000;
 
 let homeSelectedDeviceId = null;
 let homeProgressTimer = null;
 let homeProgressState = null;
 let homePlaybackSince = null;
 let homeDevicesSince = null;
-
-function setStatus(text) {
-  if (statusText) {
-    statusText.textContent = text;
-  }
-}
 
 function setHomePlaybackStatus(text, isPlaying) {
   if (!homePlaybackStatus) return;
@@ -87,6 +83,12 @@ function updateHomeProgress() {
 }
 
 function renderHomeTrackDetails(track) {
+  const cover = homeTrackImage ? homeTrackImage.closest(".home-cover") : null;
+  if (!track || !track.image) {
+    if (cover) cover.style.display = "none";
+  } else if (cover) {
+    cover.style.display = "";
+  }
   if (homeTrackImage) {
     homeTrackImage.src = track?.image || "";
     homeTrackImage.alt = track?.title || "Track cover";
@@ -102,23 +104,32 @@ function renderHomeTrackDetails(track) {
   }
 }
 
+function setPlaybackVisibility(hasPlayback) {
+  if (playbackTrack) {
+    playbackTrack.style.display = hasPlayback ? "" : "none";
+  }
+  if (playbackControls) {
+    playbackControls.style.display = hasPlayback ? "" : "none";
+  }
+  if (playbackWidget) {
+    playbackWidget.classList.toggle("is-empty", !hasPlayback);
+  }
+}
+
 async function fetchStatus() {
   try {
     const response = await fetch("/status");
     if (!response.ok) {
       console.error("Status check failed", response.status);
-      setStatus("Not connected");
       return;
     }
     const data = await response.json();
-    setStatus(data.connected ? "Connected" : "Not connected");
     if (!data.connected && !window.location.pathname.endsWith(MENU_SESSION_PAGE)) {
       window.location.href = MENU_SESSION_PAGE;
       return;
     }
   } catch (error) {
     console.error("Status check error", error);
-    setStatus("Not connected");
   }
 }
 
@@ -129,6 +140,7 @@ function applyHomePlaybackPayload(data) {
   if (!currentItem) {
     setHomePlaybackStatus("Paused", false);
     setHomePlaybackHint("No active playback found.");
+    setPlaybackVisibility(false);
     renderHomeTrackDetails(null);
     if (homeProgressBar) {
       homeProgressBar.value = "0";
@@ -153,6 +165,7 @@ function applyHomePlaybackPayload(data) {
     isPlaying ? "Audio is live right now." : "Playback is currently paused."
   );
   const track = parseTrack(currentItem);
+  setPlaybackVisibility(true);
   renderHomeTrackDetails(track);
 
   const durationMs =
@@ -186,30 +199,6 @@ function applyHomePlaybackPayload(data) {
       "aria-label",
       isPlaying ? "Pause" : "Play"
     );
-  }
-}
-
-async function fetchHomePlayback() {
-  try {
-    const response = await fetch("/api/queue");
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = MENU_SESSION_PAGE;
-        return;
-      }
-      const text = await response.text();
-      console.error("Home playback fetch failed", response.status, text);
-      setHomePlaybackStatus("Disconnected", false);
-      setHomePlaybackHint("Connect Spotify on the Session page to load playback.");
-      return;
-    }
-
-    const data = await response.json();
-    applyHomePlaybackPayload(data);
-  } catch (error) {
-    console.error("Home playback fetch error", error);
-    setHomePlaybackStatus("Error", false);
-    setHomePlaybackHint("Unable to load playback right now.");
   }
 }
 
@@ -267,34 +256,6 @@ function renderHomeDevices(devices) {
   });
   homeDeviceSelect.disabled = false;
   setHomeDeviceStatus("");
-}
-
-async function fetchHomeDevices() {
-  if (!homeDeviceSelect) return;
-  try {
-    const response = await fetch("/api/player/devices");
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = MENU_SESSION_PAGE;
-        return;
-      }
-      const text = await response.text();
-      console.error("Home devices fetch failed", response.status, text);
-      setHomeDeviceStatus("Unable to load devices.");
-      return;
-    }
-
-    const data = await response.json();
-    const devices = Array.isArray(data.devices) ? data.devices : [];
-    const active = devices.find((device) => device.is_active);
-    if (!homeSelectedDeviceId && active) {
-      homeSelectedDeviceId = active.id;
-    }
-    renderHomeDevices(devices);
-  } catch (error) {
-    console.error("Home devices fetch error", error);
-    setHomeDeviceStatus("Unable to load devices.");
-  }
 }
 
 async function startHomeDevicesLongPoll() {
@@ -366,13 +327,9 @@ async function updateHomeAutoplay(enabled) {
 
 
 fetchStatus();
-fetchHomePlayback();
 fetchHomeAutoplay();
 startHomePlaybackLongPoll();
 startHomeDevicesLongPoll();
-setInterval(() => {
-  // Device updates are now long-polled.
-}, HOME_REFRESH_MS);
 
 if (homeAutoplayToggle) {
   homeAutoplayToggle.addEventListener("change", (event) => {
@@ -405,7 +362,6 @@ if (homeDeviceSelect) {
 
       homeSelectedDeviceId = deviceId;
       setHomeDeviceStatus("Device switched.");
-      await fetchHomePlayback();
     } catch (error) {
       console.error("Home device transfer error", error);
       setHomeDeviceStatus("Unable to switch device.");
@@ -451,13 +407,13 @@ if (homePlayToggle) {
       if (!response.ok) {
         const text = await response.text();
         console.error("Home play toggle failed", response.status, text);
-        await fetchHomePlayback();
+        startHomePlaybackLongPoll();
         return;
       }
-      await fetchHomePlayback();
+      startHomePlaybackLongPoll();
     } catch (error) {
       console.error("Home play toggle error", error);
-      await fetchHomePlayback();
+      startHomePlaybackLongPoll();
     }
   });
 }
