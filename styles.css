@@ -1038,6 +1038,16 @@ body.overlay-open {
   gap: 0.35rem;
 }
 
+.queue-card.is-current .queue-play {
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
+}
+
+.queue-card:not(.is-current) .queue-play {
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
+}
+
 .queue-now-actions {
   display: none;
   align-items: center;
@@ -1188,6 +1198,38 @@ body.overlay-open {
 
   .queue-header {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .queue-card.is-current {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .queue-card:not(.is-current) {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .queue-card.is-current .queue-play {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .queue-card:not(.is-current) .queue-play {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .queue-card.is-current .queue-now-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .queue-card:not(.is-current) .queue-now-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }
 
