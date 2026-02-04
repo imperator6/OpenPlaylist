@@ -345,6 +345,7 @@ h1 {
 
 .load-queue-btn {
   justify-self: start;
+  display: none;
 }
 
 .clear-queue-btn {
