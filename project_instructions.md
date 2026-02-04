@@ -97,7 +97,7 @@ All instructions below must be followed unless explicitly overridden.
 
 ## IMPORTANT
 These rules have higher priority than individual task instructions.
-If a task conflicts with these rules, follow this file.
+If a task conflicts with these rules, ask me.
 
 
 
