@@ -294,6 +294,7 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: #0f1116;
   color: var(--text);
+  font-size: 16px;
 }
 
 .field select {
@@ -592,6 +593,54 @@ h1 {
   margin-top: 1.5rem;
 }
 
+.queue-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 7, 10, 0.72);
+  backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem calc(2rem + env(safe-area-inset-bottom));
+  z-index: 120;
+}
+
+.queue-overlay.is-open {
+  display: flex;
+}
+
+.queue-dialog {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--bg-soft);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.queue-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.queue-dialog-header h3 {
+  margin: 0.2rem 0 0;
+}
+
+.queue-dialog-close {
+  padding: 0.45rem 0.9rem;
+}
+
+body.overlay-open {
+  overflow: hidden;
+}
+
 .now-playing-header {
   display: flex;
   align-items: center;
@@ -763,6 +812,19 @@ h1 {
   cursor: grab;
 }
 
+.queue-insert {
+  width: 100%;
+  border-radius: 1rem;
+  padding: 0.7rem 1rem;
+  margin-top: 0.5rem;
+  border: 2px dashed rgba(255, 214, 102, 0.7);
+  background: rgba(255, 214, 102, 0.12);
+  color: #ffe6a6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .queue-card .cover {
   width: 4rem;
   aspect-ratio: 1 / 1;
@@ -914,13 +976,6 @@ h1 {
   height: 1.1rem;
 }
 
-.queue-card.placement-mode .queue-actions {
-  display: flex;
-}
-
-.queue-card.placement-mode {
-  cursor: pointer;
-}
 
 @keyframes equalize {
   0%,

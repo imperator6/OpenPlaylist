@@ -24,6 +24,7 @@ All instructions below must be followed unless explicitly overridden.
 - Touch targets must be finger-friendly (minimum ~44px height).
 - Avoid hover-only interactions; mobile must be fully usable without hover.
 - Text must remain readable without zooming.
+- On iOS Safari, ensure input font size is 16px or larger to prevent auto-zoom.
 
 ## ACCESSIBILITY (A11Y)
 - Use semantic HTML elements where possible.

@@ -16,6 +16,8 @@ const searchInput = document.getElementById("queue-search-input");
 const clearSearchBtn = document.getElementById("clear-search-btn");
 const searchResults = document.getElementById("queue-results");
 const searchTemplate = document.getElementById("search-card");
+const queueOverlay = document.getElementById("queue-overlay");
+const queueOverlayClose = document.getElementById("queue-overlay-close");
 
 const REFRESH_INTERVAL_MS = 8000;
 const SESSION_PAGE = "session.html";
@@ -25,7 +27,6 @@ let currentPlaylistId = null;
 let playlistTracks = [];
 let isDragging = false;
 let isReordering = false;
-let placementTrack = null;
 let defaultPlaylistId = null;
 let currentPlaybackId = null;
 let autoPlayEnabled = true;
@@ -36,6 +37,9 @@ let lastRemainingText = "";
 let selectedDeviceId = null;
 let playbackSince = null;
 let devicesSince = null;
+let lastOverlayTrigger = null;
+let pendingInsertIndex = null;
+let pendingInsertLabel = "";
 
 function setQueueStatus(message, showSaving) {
   if (showSaving) {
@@ -52,6 +56,45 @@ function setPlacementMessage(message) {
 function setQueueError(message) {
   if (!queueError) return;
   queueError.textContent = message || "";
+}
+
+function openSearchOverlay(trigger) {
+  if (!queueOverlay) return;
+  queueOverlay.classList.add("is-open");
+  queueOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("overlay-open");
+  lastOverlayTrigger = trigger || null;
+  if (trigger && trigger.dataset && trigger.dataset.index !== undefined) {
+    const index = Number(trigger.dataset.index);
+    if (!Number.isNaN(index)) {
+      pendingInsertIndex = index + 1;
+      pendingInsertLabel = trigger.dataset.title
+        ? `After "${trigger.dataset.title}"`
+        : "After selected track";
+    }
+  } else {
+    pendingInsertIndex = playlistTracks.length;
+    pendingInsertLabel = "At the end of the list";
+  }
+  setPlacementMessage(`Inserting: ${pendingInsertLabel}`);
+  if (searchInput) {
+    requestAnimationFrame(() => {
+      searchInput.focus();
+    });
+  }
+}
+
+function closeSearchOverlay() {
+  if (!queueOverlay) return;
+  queueOverlay.classList.remove("is-open");
+  queueOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("overlay-open");
+  setPlacementMessage("");
+  pendingInsertIndex = null;
+  pendingInsertLabel = "";
+  if (lastOverlayTrigger && typeof lastOverlayTrigger.focus === "function") {
+    lastOverlayTrigger.focus();
+  }
 }
 function renderAutoplayState(enabled) {
   if (!autoPlayToggle) return;
@@ -221,11 +264,11 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
   const meta = node.querySelector(".meta");
   const title = node.querySelector("h3");
   const artist = node.querySelector(".artist");
-  const actions = node.querySelector(".queue-actions");
   const playButton = node.querySelector('[data-action="play"]');
   const removeButton = node.querySelector('[data-action="remove"]');
   const nowActions = node.querySelector('[data-now-actions]');
   const togglePlayButton = node.querySelector('[data-action="toggle-play"]');
+  const insertButton = node.querySelector(".queue-insert");
 
   img.src = item.image;
   img.alt = item.title;
@@ -234,7 +277,7 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
   artist.textContent = item.artist;
 
   card.dataset.index = String(index);
-  card.draggable = !placementTrack;
+  card.draggable = true;
   card.classList.add("no-action");
 
   if (isPlaying) {
@@ -292,15 +335,9 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     });
   }
 
-  if (placementTrack) {
-    card.classList.add("placement-mode");
-    card.classList.remove("no-action");
-    actions
-      .querySelector('[data-action="before"]')
-      .addEventListener("click", () => placeTrackAt(index, "before"));
-    actions
-      .querySelector('[data-action="after"]')
-      .addEventListener("click", () => placeTrackAt(index, "after"));
+  if (insertButton) {
+    insertButton.dataset.index = String(index);
+    insertButton.dataset.title = item.title || "";
   }
 
   attachDragHandlers(card);
@@ -326,8 +363,7 @@ function createSearchCard(item) {
   card.classList.remove("no-action");
   button.textContent = "Place";
   button.addEventListener("click", () => {
-    enterPlacementMode(item);
-    clearSearchResultsView();
+    addTrackToPlaylist(item, pendingInsertIndex);
   });
 
   return node;
@@ -341,7 +377,6 @@ function clearDropTargets() {
 
 function attachDragHandlers(card) {
   card.addEventListener("dragstart", (event) => {
-    if (placementTrack) return;
     isDragging = true;
     card.classList.add("dragging");
     event.dataTransfer.effectAllowed = "move";
@@ -355,7 +390,6 @@ function attachDragHandlers(card) {
   });
 
   card.addEventListener("dragover", (event) => {
-    if (placementTrack) return;
     event.preventDefault();
     clearDropTargets();
     card.classList.add("drop-target");
@@ -367,7 +401,6 @@ function attachDragHandlers(card) {
   });
 
   card.addEventListener("drop", (event) => {
-    if (placementTrack) return;
     event.preventDefault();
     card.classList.remove("drop-target");
     const fromIndex = Number(event.dataTransfer.getData("text/plain"));
@@ -378,32 +411,16 @@ function attachDragHandlers(card) {
 }
 
 queueList.addEventListener("dragover", (event) => {
-  if (placementTrack) return;
   event.preventDefault();
 });
 
 queueList.addEventListener("drop", (event) => {
-  if (placementTrack) return;
   const targetCard = event.target.closest(".queue-card");
   if (targetCard) return;
   const fromIndex = Number(event.dataTransfer.getData("text/plain"));
   if (Number.isNaN(fromIndex)) return;
   reorderPlaylist(fromIndex, playlistTracks.length - 1);
 });
-
-function enterPlacementMode(item) {
-  placementTrack = item;
-  setPlacementMessage(
-    `Choose where to add "${item.title}". Tap Add before/after on a track.`
-  );
-  renderPlaylist(playlistTracks);
-}
-
-function exitPlacementMode() {
-  placementTrack = null;
-  setPlacementMessage("");
-  renderPlaylist(playlistTracks);
-}
 
 function renderPlayback(data) {
   const playback = data.playback;
@@ -490,25 +507,6 @@ function renderPlayback(data) {
 function renderPlaylist(tracks) {
   queueList.innerHTML = "";
   if (!tracks.length) {
-    if (placementTrack) {
-      const emptyWrap = document.createElement("div");
-      emptyWrap.className = "queue-empty";
-      const text = document.createElement("p");
-      text.className = "subtle";
-      text.textContent = "Playlist is empty. Add the selected track to start.";
-      const button = document.createElement("button");
-      button.className = "ghost";
-      button.type = "button";
-      button.textContent = "Add to start";
-      button.addEventListener("click", async () => {
-        await addTrackToPlaylist(placementTrack.uri, 0);
-        exitPlacementMode();
-      });
-      emptyWrap.appendChild(text);
-      emptyWrap.appendChild(button);
-      queueList.appendChild(emptyWrap);
-      return;
-    }
     queueList.innerHTML = '<p class="subtle">No tracks in this playlist.</p>';
     return;
   }
@@ -555,7 +553,6 @@ function clearSearchResultsView() {
 function clearSearchResults() {
   searchResults.innerHTML = "";
   searchInput.value = "";
-  exitPlacementMode();
 }
 
 async function removeTrackAt(index) {
@@ -772,20 +769,24 @@ async function searchTracks(query) {
   }
 }
 
-async function addTrackToPlaylist(uri, position) {
+async function addTrackToPlaylist(track, position) {
   if (!currentPlaylistId) {
     setQueueStatus("Select and load a playlist on the Playlist page.");
     return;
   }
-  if (!uri || !placementTrack) return;
+  if (!track || !track.uri) return;
+  const effectivePosition =
+    typeof position === "number" && position >= 0
+      ? Math.min(position, playlistTracks.length)
+      : playlistTracks.length;
   try {
     setQueueStatus("Adding track...", true);
     const response = await fetch("/api/queue/playlist/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        track: placementTrack,
-        position
+        track,
+        position: effectivePosition
       })
     });
 
@@ -800,17 +801,12 @@ async function addTrackToPlaylist(uri, position) {
     playlistTracks = data.tracks || [];
     renderPlaylist(playlistTracks);
     setQueueStatus("Track added.");
+    clearSearchResults();
+    closeSearchOverlay();
   } catch (error) {
     console.error("Add track error", error);
     setQueueStatus("Unable to add track.");
   }
-}
-
-async function placeTrackAt(index, placement) {
-  if (!placementTrack) return;
-  const position = placement === "before" ? index : index + 1;
-  await addTrackToPlaylist(placementTrack.uri, position);
-  exitPlacementMode();
 }
 
 async function playSingleTrack(uri, trackId) {
@@ -1004,6 +1000,33 @@ clearSearchBtn.addEventListener("click", () => {
   setQueueStatus("Showing waiting list.");
 });
 
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-open-search]");
+  if (!target) return;
+  event.preventDefault();
+  openSearchOverlay(target);
+});
+
+if (queueOverlayClose) {
+  queueOverlayClose.addEventListener("click", () => {
+    closeSearchOverlay();
+  });
+}
+
+if (queueOverlay) {
+  queueOverlay.addEventListener("click", (event) => {
+    if (event.target === queueOverlay) {
+      closeSearchOverlay();
+    }
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!queueOverlay || !queueOverlay.classList.contains("is-open")) return;
+  closeSearchOverlay();
+});
+
 startPlaybackLongPoll();
 fetchDefaultPlaylistId().then(fetchPlaylists);
 startDevicesLongPoll();
@@ -1011,7 +1034,7 @@ setInterval(() => {
   // Device updates are now long-polled.
 }, 15000);
 setInterval(async () => {
-  if (!isDragging && !isReordering && !placementTrack) {
+  if (!isDragging && !isReordering) {
     await fetchPlaylistTracks();
   }
 }, REFRESH_INTERVAL_MS);
