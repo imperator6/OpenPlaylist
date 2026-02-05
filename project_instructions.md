@@ -87,9 +87,6 @@ All instructions below must be followed unless explicitly overridden.
 - Avoid excessive logging in high-frequency code paths.
 - Logging must not significantly impact performance.
 
-## GIT 
-- commit every change local
-
 
 ## OUTPUT EXPECTATIONS
 - Generated code should be production-ready unless stated otherwise.
