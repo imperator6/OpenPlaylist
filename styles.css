@@ -846,8 +846,8 @@ body.overlay-open {
 }
 
 .queue-card.is-user:not(.is-playing) {
-  background: rgba(255, 214, 102, 0.12);
-  border-color: rgba(255, 214, 102, 0.35);
+  background: rgba(102, 198, 255, 0.14);
+  border-color: rgba(102, 198, 255, 0.4);
 }
 
 .queue-insert {
