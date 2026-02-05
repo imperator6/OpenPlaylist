@@ -828,7 +828,7 @@ body.overlay-open {
   padding: 0.75rem;
   background: var(--card);
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   align-items: center;
   cursor: grab;
 }
@@ -840,7 +840,7 @@ body.overlay-open {
   padding: 0.75rem;
   background: var(--card);
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   align-items: center;
   cursor: grab;
 }
