@@ -1,4 +1,4 @@
-# Spotify Search App
+# Open Playlist - Spotify Waiting List Manager
 
 ## Environment Setup (.env)
 1. Copy `.env.example` to `.env`.
@@ -43,7 +43,7 @@ docker-compose logs -f
 ## Project Structure
 
 ```
-spotify-codex/
+open-playlist/
 ├── server/              # Server-side code
 │   └── server.js
 ├── public/              # Client-side static files

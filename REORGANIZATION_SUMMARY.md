@@ -4,13 +4,13 @@
 February 6, 2026
 
 ## Overview
-Reorganized the Spotify Codex project from a flat file structure to a well-organized directory structure following industry best practices.
+Reorganized the Open Playlist project from a flat file structure to a well-organized directory structure following industry best practices.
 
 ## Changes Made
 
 ### 1. New Directory Structure
 ```
-spotify-codex/
+open-playlist/
 ├── server/                     # Server-side code
 │   └── server.js
 ├── public/                     # Client-side static files

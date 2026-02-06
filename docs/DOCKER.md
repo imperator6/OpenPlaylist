@@ -1,6 +1,6 @@
 # Docker Setup Guide
 
-This guide explains how to build and run Spotify Codex using Docker.
+This guide explains how to build and run Open Playlist using Docker.
 
 ## Prerequisites
 
@@ -34,10 +34,10 @@ LOG_LEVEL=INFO
 ### 2. Build the Docker Image
 
 ```bash
-docker build -t spotify-codex:latest .
+docker build -t open-playlist:latest .
 ```
 
-This creates an image tagged as `spotify-codex:latest`.
+This creates an image tagged as `open-playlist:latest`.
 
 ### 3. Run the Container
 
@@ -45,10 +45,10 @@ This creates an image tagged as `spotify-codex:latest`.
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 5173:5173 \
   --env-file .env \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 #### Run with Data Persistence (Recommended)
@@ -57,13 +57,13 @@ To persist session and queue data across container restarts:
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 5173:5173 \
   --env-file .env \
   -v spotify-data:/app/storage \
   -e SESSION_STORE=/app/storage/session_store.json \
   -e QUEUE_STORE=/app/storage/queue_store.json \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 ### 4. Access the Application
@@ -79,46 +79,46 @@ http://localhost:5173
 
 ```bash
 # Follow logs in real-time
-docker logs -f spotify-codex
+docker logs -f open-playlist
 
 # View last 100 lines
-docker logs --tail 100 spotify-codex
+docker logs --tail 100 open-playlist
 ```
 
 ### Stop the Container
 
 ```bash
-docker stop spotify-codex
+docker stop open-playlist
 ```
 
 ### Start the Container
 
 ```bash
-docker start spotify-codex
+docker start open-playlist
 ```
 
 ### Remove the Container
 
 ```bash
-docker rm -f spotify-codex
+docker rm -f open-playlist
 ```
 
 ### Rebuild After Code Changes
 
 ```bash
 # Stop and remove old container
-docker rm -f spotify-codex
+docker rm -f open-playlist
 
 # Rebuild image
-docker build -t spotify-codex:latest .
+docker build -t open-playlist:latest .
 
 # Run new container
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 5173:5173 \
   --env-file .env \
   -v spotify-data:/app/data \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 ## Advanced Configuration
@@ -129,10 +129,10 @@ To run on a different host port (e.g., 8080):
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 8080:5173 \
   --env-file .env \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 Update your `.env` file:
@@ -146,25 +146,25 @@ Override specific environment variables at runtime:
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 5173:5173 \
   --env-file .env \
   -e LOG_LEVEL=DEBUG \
   -e AUTO_REFRESH=0 \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 ### Inspect Container
 
 ```bash
 # View container details
-docker inspect spotify-codex
+docker inspect open-playlist
 
 # Execute commands inside container
-docker exec -it spotify-codex sh
+docker exec -it open-playlist sh
 
 # Check health status
-docker inspect --format='{{.State.Health.Status}}' spotify-codex
+docker inspect --format='{{.State.Health.Status}}' open-playlist
 ```
 
 ## Docker Compose (Alternative)
@@ -175,9 +175,9 @@ For easier management, create a `docker-compose.yml`:
 version: '3.8'
 
 services:
-  spotify-codex:
+  open-playlist:
     build: .
-    container_name: spotify-codex
+    container_name: open-playlist
     ports:
       - "5173:5173"
     env_file:
@@ -221,10 +221,10 @@ docker-compose up -d --build
 
 ```bash
 # Check logs for errors
-docker logs spotify-codex
+docker logs open-playlist
 
 # Verify environment variables
-docker exec spotify-codex env | grep SPOTIFY
+docker exec open-playlist env | grep SPOTIFY
 ```
 
 ### Port Already in Use
@@ -235,7 +235,7 @@ netstat -ano | findstr :5173  # Windows
 lsof -i :5173                  # Linux/Mac
 
 # Use a different port
-docker run -d --name spotify-codex -p 8080:5173 --env-file .env spotify-codex:latest
+docker run -d --name open-playlist -p 8080:5173 --env-file .env open-playlist:latest
 ```
 
 ### Permission Issues
@@ -254,10 +254,10 @@ To access from other devices on your network:
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   -p 0.0.0.0:5173:5173 \
   --env-file .env \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 Update `.env`:
@@ -288,7 +288,7 @@ Example production run:
 
 ```bash
 docker run -d \
-  --name spotify-codex \
+  --name open-playlist \
   --restart unless-stopped \
   -p 127.0.0.1:5173:5173 \
   --env-file .env \
@@ -297,7 +297,7 @@ docker run -d \
   --cpus="0.5" \
   --log-opt max-size=10m \
   --log-opt max-file=3 \
-  spotify-codex:latest
+  open-playlist:latest
 ```
 
 ## Backup and Restore
@@ -327,4 +327,4 @@ docker run --rm \
 For issues and questions:
 - Check [README.md](README.md) for application documentation
 - Review [APP_SUMMARY.md](APP_SUMMARY.md) for technical details
-- Check container logs: `docker logs spotify-codex`
+- Check container logs: `docker logs open-playlist`

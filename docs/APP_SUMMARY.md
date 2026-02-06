@@ -5,7 +5,7 @@ A lightweight Spotify host app that connects to Spotify, manages a waiting-list 
 
 ## Project Structure
 ```
-spotify-codex/
+open-playlist/
 ├── server/
 │   └── server.js           # Node.js server entry point
 ├── public/                  # Static files served to clients
