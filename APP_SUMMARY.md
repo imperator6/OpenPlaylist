@@ -50,8 +50,8 @@ A lightweight Spotify host app that connects to Spotify, manages a waiting-list 
 - `queue_store.json`: active playlist id/name, track list, current index, autoplay state, last error, and device info.
 
 ## Configuration
-- `.env` supports `DEFAULT_DEVICE_NAME` to preselect a device by name (case-insensitive) on startup.
-- When a user switches device in the UI, the server stores that device name as the new default and broadcasts it via the devices stream.
+- `.env` supports `LOG_LEVEL` (`DEBUG`, `INFO`, `WARN`, `ERROR`) to control server log verbosity; invalid or missing values default to `INFO`.
+- When a user switches device in the UI, the server stores `activeDeviceId` and `activeDeviceName` in `queue_store.json` and broadcasts the selected device via the devices stream.
 
 ## Security Notes
 - Spotify access tokens, refresh tokens, and client secrets are never sent to the browser.

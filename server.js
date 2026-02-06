@@ -14,9 +14,16 @@ const AUTO_REFRESH =
 const SESSION_STORE = path.join(__dirname, "session_store.json");
 const QUEUE_STORE = path.join(__dirname, "queue_store.json");
 const DEFAULT_PLAYLIST_ID = process.env.DEFAULT_PLAYLIST_ID || "";
-const DEFAULT_DEVICE_NAME = process.env.DEFAULT_DEVICE_NAME || "";
 const REDIRECT_URI =
   process.env.SPOTIFY_REDIRECT_URI || `http://localhost:${PORT}/callback`;
+const LOG_LEVEL_NAME = String(process.env.LOG_LEVEL || "INFO").toUpperCase();
+const LOG_LEVELS = {
+  DEBUG: 10,
+  INFO: 20,
+  WARN: 30,
+  ERROR: 40
+};
+const ACTIVE_LOG_LEVEL = LOG_LEVELS[LOG_LEVEL_NAME] || LOG_LEVELS.INFO;
 
 const sharedSession = {
   token: null,
@@ -37,8 +44,7 @@ const sharedQueue = {
   lastAdvanceAt: null,
   lastError: null,
   activeDeviceId: null,
-  activeDeviceName: null,
-  defaultDeviceName: null
+  activeDeviceName: null
 };
 const sharedPlaybackCache = {
   playback: null,
@@ -66,6 +72,11 @@ function writeLog(line, isError) {
 }
 
 function log(level, message, context, err) {
+  const levelWeight = LOG_LEVELS[level] || LOG_LEVELS.INFO;
+  if (levelWeight < ACTIVE_LOG_LEVEL) {
+    return;
+  }
+
   const payload = {
     timestamp: new Date().toISOString(),
     level,
@@ -164,7 +175,6 @@ function readQueueStore() {
     sharedQueue.lastError = data.lastError || null;
     sharedQueue.activeDeviceId = data.activeDeviceId || null;
     sharedQueue.activeDeviceName = data.activeDeviceName || null;
-    sharedQueue.defaultDeviceName = data.defaultDeviceName || null;
     if (didNormalizeSources) {
       persistQueueStore();
     }
@@ -192,8 +202,7 @@ function persistQueueStore() {
       lastAdvanceAt: sharedQueue.lastAdvanceAt,
       lastError: sharedQueue.lastError,
       activeDeviceId: sharedQueue.activeDeviceId,
-      activeDeviceName: sharedQueue.activeDeviceName,
-      defaultDeviceName: sharedQueue.defaultDeviceName
+      activeDeviceName: sharedQueue.activeDeviceName
     };
     fs.writeFileSync(QUEUE_STORE, JSON.stringify(data, null, 2));
   } catch (err) {
@@ -491,7 +500,7 @@ async function refreshDevicesCache() {
     sharedDevicesCache.devices = devices;
     sharedDevicesCache.preferredDeviceId = null;
     if (devices.length) {
-      const preferredName = sharedQueue.defaultDeviceName || DEFAULT_DEVICE_NAME;
+      const preferredName = sharedQueue.activeDeviceName;
       if (preferredName) {
         const match = devices.find(
           (device) =>
@@ -1523,7 +1532,6 @@ const server = http.createServer(async (req, res) => {
 
     sharedQueue.activeDeviceId = deviceId;
     sharedQueue.activeDeviceName = body.deviceName || null;
-    sharedQueue.defaultDeviceName = body.deviceName || sharedQueue.defaultDeviceName;
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
 
