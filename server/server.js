@@ -175,13 +175,20 @@ function readQueueStore() {
     const data = JSON.parse(raw);
     sharedQueue.activePlaylistId = data.activePlaylistId || null;
     sharedQueue.activePlaylistName = data.activePlaylistName || null;
-    let didNormalizeSources = false;
+    let didNormalize = false;
     sharedQueue.tracks = Array.isArray(data.tracks)
       ? data.tracks.map((track) => {
           if (!track || typeof track !== "object") return track;
-          if (track.source) return track;
-          didNormalizeSources = true;
-          return { ...track, source: "playlist" };
+          let normalized = { ...track };
+          if (!normalized.source) {
+            normalized.source = "playlist";
+            didNormalize = true;
+          }
+          if (!normalized.addedTimestamp) {
+            normalized.addedTimestamp = data.updatedAt || new Date().toISOString();
+            didNormalize = true;
+          }
+          return normalized;
         })
       : [];
     sharedQueue.updatedAt = data.updatedAt || null;
@@ -196,7 +203,7 @@ function readQueueStore() {
     sharedQueue.lastError = data.lastError || null;
     sharedQueue.activeDeviceId = data.activeDeviceId || null;
     sharedQueue.activeDeviceName = data.activeDeviceName || null;
-    if (didNormalizeSources) {
+    if (didNormalize) {
       persistQueueStore();
     }
 
@@ -1782,6 +1789,7 @@ const server = http.createServer(async (req, res) => {
 
     const data = await response.json();
     const items = Array.isArray(data.items) ? data.items : [];
+    const addedAt = new Date().toISOString();
     const tracks = items
       .map((item) => item.track)
       .filter(Boolean)
@@ -1795,7 +1803,8 @@ const server = http.createServer(async (req, res) => {
             ? track.album.images[0].url
             : "",
         album: track.album ? track.album.name : "",
-        source: "playlist"
+        source: "playlist",
+        addedTimestamp: addedAt
       }));
 
     sharedQueue.activePlaylistId = playlistId;
@@ -1841,7 +1850,8 @@ const server = http.createServer(async (req, res) => {
       artist: track.artist || "Unknown artist",
       image: track.image || "",
       album: track.album || "",
-      source: "user"
+      source: "user",
+      addedTimestamp: new Date().toISOString()
     };
 
     if (position === null || position >= sharedQueue.tracks.length) {

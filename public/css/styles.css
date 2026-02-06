@@ -850,33 +850,41 @@ body.overlay-open {
   border-color: rgba(102, 198, 255, 0.4);
 }
 
-.queue-user-row {
+.queue-user-badge {
   display: none;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--muted);
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(30, 215, 96, 0.15);
+  border: 1px solid rgba(30, 215, 96, 0.3);
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.queue-user-row .icon {
-  width: 1rem;
-  height: 1rem;
+.queue-user-badge .icon {
+  width: 0.9rem;
+  height: 0.9rem;
   display: inline-flex;
+  flex-shrink: 0;
 }
 
-.queue-user-row svg {
+.queue-user-badge svg {
   width: 100%;
   height: 100%;
   fill: currentColor;
 }
 
-.queue-user-time {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
+.queue-user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.queue-card.is-user .queue-user-row {
-  display: flex;
+.queue-card.is-user .queue-user-badge {
+  display: inline-flex;
 }
 
 .queue-insert {
