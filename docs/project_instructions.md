@@ -61,6 +61,7 @@ All instructions below must be followed unless explicitly overridden.
 - All server-side applications MUST implement structured logging.
 - Use log levels consistently: DEBUG, INFO, WARN, ERROR.
 - Do NOT use console.log for production logging.
+- Whenever the server calls the Spotify API, emit a DEBUG log message that clearly indicates it is connecting to Spotify.
 - Logs must include:
   - Timestamp (ISO 8601)
   - Log level
