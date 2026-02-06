@@ -11,9 +11,8 @@ const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 const HOST_PIN = process.env.HOST_PIN || "";
 const AUTO_REFRESH =
   String(process.env.AUTO_REFRESH || "1").toLowerCase() === "1";
-const SESSION_STORE = path.join(__dirname, "session_store.json");
-const QUEUE_STORE = path.join(__dirname, "queue_store.json");
-const DEFAULT_PLAYLIST_ID = process.env.DEFAULT_PLAYLIST_ID || "";
+const SESSION_STORE = process.env.SESSION_STORE || path.join(__dirname, "..", "storage", "session_store.json");
+const QUEUE_STORE = process.env.QUEUE_STORE || path.join(__dirname, "..", "storage", "queue_store.json");
 const REDIRECT_URI =
   process.env.SPOTIFY_REDIRECT_URI || `http://localhost:${PORT}/callback`;
 const LOG_LEVEL_NAME = String(process.env.LOG_LEVEL || "INFO").toUpperCase();
@@ -215,7 +214,7 @@ if (!CLIENT_ID) missingEnv.push("SPOTIFY_CLIENT_ID");
 if (!CLIENT_SECRET) missingEnv.push("SPOTIFY_CLIENT_SECRET");
 
 if (missingEnv.length) {
-  const envPath = path.join(__dirname, ".env");
+  const envPath = path.join(__dirname, "..", ".env");
   const hasEnvFile = fs.existsSync(envPath);
   logError("Missing required environment variables", {
     missing: missingEnv,
@@ -880,34 +879,34 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname;
 
   if (pathname === "/" || pathname === "/index.html") {
-    return readStaticFile(path.join(__dirname, "index.html"), res);
+    return readStaticFile(path.join(__dirname, "..", "public", "index.html"), res);
   }
   if (pathname === "/session" || pathname === "/session.html") {
-    return readStaticFile(path.join(__dirname, "session.html"), res);
+    return readStaticFile(path.join(__dirname, "..", "public", "session.html"), res);
   }
   if (pathname === "/recently" || pathname === "/recently.html") {
-    return readStaticFile(path.join(__dirname, "recently.html"), res);
+    return readStaticFile(path.join(__dirname, "..", "public", "recently.html"), res);
   }
   if (pathname === "/playlist" || pathname === "/playlist.html") {
-    return readStaticFile(path.join(__dirname, "playlist.html"), res);
+    return readStaticFile(path.join(__dirname, "..", "public", "playlist.html"), res);
   }
-  if (pathname === "/styles.css") {
-    return readStaticFile(path.join(__dirname, "styles.css"), res);
+  if (pathname === "/css/styles.css") {
+    return readStaticFile(path.join(__dirname, "..", "public", "css", "styles.css"), res);
   }
-  if (pathname === "/app.js") {
-    return readStaticFile(path.join(__dirname, "app.js"), res);
+  if (pathname === "/js/app.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "app.js"), res);
   }
-  if (pathname === "/session.js") {
-    return readStaticFile(path.join(__dirname, "session.js"), res);
+  if (pathname === "/js/session.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "session.js"), res);
   }
-  if (pathname === "/queue.js") {
-    return readStaticFile(path.join(__dirname, "queue.js"), res);
+  if (pathname === "/js/queue.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "queue.js"), res);
   }
-  if (pathname === "/recently.js") {
-    return readStaticFile(path.join(__dirname, "recently.js"), res);
+  if (pathname === "/js/recently.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "recently.js"), res);
   }
-  if (pathname === "/playlist.js") {
-    return readStaticFile(path.join(__dirname, "playlist.js"), res);
+  if (pathname === "/js/playlist.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "playlist.js"), res);
   }
 
   if (pathname === "/status") {
@@ -918,8 +917,7 @@ const server = http.createServer(async (req, res) => {
       hasToken: Boolean(sharedSession.token),
       hasRefreshToken: Boolean(sharedSession.refreshToken),
       hasRedirectUri: Boolean(sharedSession.redirectUri),
-      hostPinRequired: Boolean(HOST_PIN),
-      defaultPlaylistId: DEFAULT_PLAYLIST_ID || null
+      hostPinRequired: Boolean(HOST_PIN)
     });
   }
 

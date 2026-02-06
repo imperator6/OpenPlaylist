@@ -3,6 +3,34 @@
 ## Purpose
 A lightweight Spotify host app that connects to Spotify, manages a waiting-list playlist, and provides search, queue control, and recently played views.
 
+## Project Structure
+```
+spotify-codex/
+├── server/
+│   └── server.js           # Node.js server entry point
+├── public/                  # Static files served to clients
+│   ├── *.html              # HTML pages (index, playlist, session, recently)
+│   ├── js/                 # Client-side JavaScript
+│   │   ├── app.js
+│   │   ├── playlist.js
+│   │   ├── queue.js
+│   │   ├── recently.js
+│   │   └── session.js
+│   └── css/
+│       └── styles.css      # Application styles
+├── storage/                 # Data persistence (gitignored)
+│   ├── session_store.json  # OAuth tokens
+│   └── queue_store.json    # Playlist state
+├── docs/                    # Documentation
+│   ├── APP_SUMMARY.md
+│   ├── DOCKER.md
+│   └── project_instructions.md
+├── .env                     # Environment configuration
+├── package.json
+├── Dockerfile
+└── docker-compose.yml
+```
+
 ## Pages
 - `index.html`: Home + full playback controls (play/pause, progress, remaining, autoplay, device) plus the waiting list queue section appended at the end of the page.
 - Home displays queue count pulled from the playback stream, shows a red "Load Songs from a Playlist" button when empty, and offers a clear-queue action when populated.
@@ -46,11 +74,13 @@ A lightweight Spotify host app that connects to Spotify, manages a waiting-list 
 - Home no longer has fallback playback/device fetch helpers; streams are the only source for those updates.
 
 ## Storage
-- `session_store.json`: OAuth tokens + expiry.
-- `queue_store.json`: active playlist id/name, track list, current index, autoplay state, last error, and device info.
+- `storage/session_store.json`: OAuth tokens + expiry.
+- `storage/queue_store.json`: active playlist id/name, track list, current index, autoplay state, last error, and device info.
+- Storage paths can be overridden via `SESSION_STORE` and `QUEUE_STORE` environment variables.
 
 ## Configuration
 - `.env` supports `LOG_LEVEL` (`DEBUG`, `INFO`, `WARN`, `ERROR`) to control server log verbosity; invalid or missing values default to `INFO`.
+- There is no env-based default playlist; active waiting-list playlist selection is managed via queue endpoints and stored in `queue_store.json`.
 - When a user switches device in the UI, the server stores `activeDeviceId` and `activeDeviceName` in `queue_store.json` and broadcasts the selected device via the devices stream.
 
 ## Security Notes

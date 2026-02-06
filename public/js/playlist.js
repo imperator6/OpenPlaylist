@@ -14,7 +14,6 @@ const SESSION_PAGE = "session.html";
 const PLAYLIST_KEY = "waiting_list_playlist";
 
 let currentPlaylistId = null;
-let defaultPlaylistId = null;
 
 function setStatus(message, showSaving) {
   if (showSaving) {
@@ -174,17 +173,6 @@ async function loadPlaylistById(playlistId, playlistName) {
   }
 }
 
-async function fetchDefaultPlaylistId() {
-  try {
-    const response = await fetch("/status");
-    if (!response.ok) return;
-    const data = await response.json();
-    defaultPlaylistId = data.defaultPlaylistId || null;
-  } catch (error) {
-    console.error("Default playlist fetch error", error);
-  }
-}
-
 async function selectActivePlaylist() {
   if (!currentPlaylistId) return;
   try {
@@ -253,17 +241,9 @@ async function fetchPlaylists() {
     });
 
     const stored = localStorage.getItem(PLAYLIST_KEY);
-    let selected = null;
-    if (defaultPlaylistId) {
-      selected = playlists.find((item) => item.id === defaultPlaylistId)
-        ? defaultPlaylistId
-        : null;
-    }
-    if (!selected) {
-      selected = playlists.find((item) => item.id === stored)
-        ? stored
-        : playlists[0].id;
-    }
+    const selected = playlists.find((item) => item.id === stored)
+      ? stored
+      : playlists[0].id;
 
     playlistSelect.value = selected;
     currentPlaylistId = selected;
@@ -331,7 +311,7 @@ if (loadPlaylistBtn) {
 }
 
 
-fetchDefaultPlaylistId().then(fetchPlaylists);
+fetchPlaylists();
 
 if (playlistSearchForm && playlistSearchInput) {
   setSearchStatus("Search for a playlist to see results.");

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  spotify-codex:
+    build: .
+    container_name: open-playlist
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    volumes:
+      - spotify-data:/app/storage
+    environment:
+      - SESSION_STORE=/app/storage/session_store.json
+      - QUEUE_STORE=/app/storage/queue_store.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5173/status', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  spotify-data:
+    driver: local

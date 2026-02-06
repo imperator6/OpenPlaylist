@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Playlist</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>Session</title>
+    <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
     <main class="page">
@@ -17,7 +17,7 @@
           </span>
           <span class="sr-only">Home</span>
         </a>
-        <a href="playlist.html" class="active" aria-label="Playlist" title="Playlist">
+        <a href="playlist.html" aria-label="Playlist" title="Playlist">
           <span class="menu-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
               <path d="M12 3a1 1 0 0 1 1 1v8.17l2.59-2.58a1 1 0 1 1 1.41 1.41l-4.3 4.3a1 1 0 0 1-1.4 0l-4.3-4.3a1 1 0 1 1 1.41-1.41L11 12.17V4a1 1 0 0 1 1-1zm-7 12a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"></path>
@@ -33,7 +33,7 @@
           </span>
           <span class="sr-only">Recently Played</span>
         </a>
-        <a href="session.html" aria-label="Session" title="Session">
+        <a href="session.html" class="active" aria-label="Session" title="Session">
           <span class="menu-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
               <path d="M12 3a2 2 0 0 1 2 2c0 .18-.02.36-.06.53l2 .9a2 2 0 1 1-1 1.73l-2-.9a2 2 0 0 1-.94.44V11a2 2 0 1 1-2 0V8.7a2 2 0 0 1-.94-.44l-2 .9a2 2 0 1 1-1-1.73l2-.9A2 2 0 0 1 12 3zm0 6a1 1 0 1 0 0 2a1 1 0 0 0 0-2zm7 3a2 2 0 0 1 2 2c0 .18-.02.36-.06.53l-2 .9a2 2 0 1 1-1 1.73l2-.9A2 2 0 0 1 19 12zm-14 0a2 2 0 0 1 2 2c0 .18-.02.36-.06.53l-2 .9a2 2 0 1 1-1 1.73l2-.9A2 2 0 0 1 5 12zm7 7a2 2 0 0 1 2 2c0 .18-.02.36-.06.53l2 .9a2 2 0 1 1-1 1.73l-2-.9A2 2 0 0 1 12 19zm0 0a2 2 0 0 1-2 2c0 .18.02.36.06.53l-2 .9a2 2 0 1 1-1 1.73l2-.9A2 2 0 0 1 10 19z"></path>
@@ -45,63 +45,68 @@
 
       <header class="queue-hero">
         <div>
-          <p class="eyebrow">Playlist</p>
-          <h1>Choose the waiting list playlist</h1>
+          <p class="eyebrow">Session</p>
+          <h1>Manage your Spotify connection</h1>
           <p class="lede">
-            Pick the playlist used for the waiting list, then start playback on
-            your active Spotify device.
+            Review session status, see expiry times, and reconnect if needed.
+            Guests can view status but only the host can connect or disconnect.
           </p>
         </div>
-        <div class="panel">
-          <h2>Playback</h2>
-          <p class="status" id="playlist-status">Loading playlists…</p>
-          <p class="hint" id="playlist-hint">
-            Select a playlist before starting playback.
+        <div class="panel" id="auth-panel">
+          <h2>Connect</h2>
+          <p class="hint">
+            This app uses a small backend so your Spotify credentials never
+            touch the browser.
           </p>
           <label class="field">
-            <span>Waiting list playlist</span>
-            <select id="playlist-select"></select>
+            <span>Host PIN</span>
+            <input
+              id="host-pin"
+              type="password"
+              placeholder="Enter host PIN"
+              autocomplete="off"
+            />
           </label>
           <div class="actions">
-            <button class="primary" id="play-playlist-btn" type="button">
-              Start playlist on Spotify
-            </button>
-            <button class="ghost" id="load-playlist-btn" type="button">
-              Load playlist
-            </button>
+            <button id="connect-btn" class="primary">Connect Spotify</button>
+            <button id="clear-btn" class="ghost">Disconnect</button>
           </div>
+          <p class="status" id="status-text">Not connected</p>
+          <p class="error" id="error-text" role="alert"></p>
+          <p class="hint">
+            Set `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` on the server,
+            then run `node server.js`.
+          </p>
         </div>
       </header>
 
-      <section class="playlist-search">
-        <div class="panel">
-          <div>
-            <p class="eyebrow">Discover</p>
-            <h2>Search public playlists</h2>
-            <p class="lede">
-              Search Spotify's public playlists and browse the results below.
-            </p>
+      <section class="queue-section">
+        <h2>Session details</h2>
+        <div class="session-grid">
+          <div class="panel">
+            <p class="meta">Status</p>
+            <p class="session-value" id="session-status">Loading...</p>
+            <p class="hint" id="session-status-hint"></p>
           </div>
-          <form id="playlist-search-form">
-            <label class="field" for="playlist-search-input">
-              <span>Search playlists</span>
-              <input
-                id="playlist-search-input"
-                name="q"
-                type="search"
-                placeholder="Try: summer chill, focus, synthwave"
-                autocomplete="off"
-              />
-            </label>
-            <button class="primary" type="submit">Search</button>
-          </form>
-          <p class="status" id="playlist-search-status"></p>
-          <ul class="playlist-results" id="playlist-search-results"></ul>
+          <div class="panel">
+            <p class="meta">Token expires</p>
+            <p class="session-value" id="session-expiry">-</p>
+            <p class="hint" id="session-expiry-relative"></p>
+          </div>
+          <div class="panel">
+            <p class="meta">Last refresh</p>
+            <p class="session-value" id="session-refresh">-</p>
+            <p class="hint" id="session-refresh-relative"></p>
+          </div>
+          <div class="panel">
+            <p class="meta">Session info</p>
+            <ul class="session-list" id="session-info"></ul>
+          </div>
         </div>
       </section>
     </main>
 
-    <script src="playlist.js"></script>
+    <script src="js/session.js"></script>
   </body>
 </html>
 

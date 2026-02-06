@@ -1,4 +1,3 @@
 .env
-session_store.json
-queue_store.json
+storage/
 node_modules/

@@ -9,26 +9,53 @@
    - `PORT` is the server port (defaults to `5173`).
    - `HOST_PIN` is required for host-only connect/disconnect.
    - `AUTO_REFRESH` enables periodic token refresh (set to `1`).
-   - `DEFAULT_PLAYLIST_ID` selects the default waiting list playlist.
-
-### Finding the Playlist ID
-`DEFAULT_PLAYLIST_ID` is not the playlist name. It is the unique Spotify ID.
-To find it:
-1. Open the playlist in Spotify.
-2. Copy the share URL, e.g. `https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M`.
-3. The ID is the part after `/playlist/`:
-   - `37i9dQZF1DXcBWIGoYBM5M`
 
 The server will refuse to start if required values are missing and will show
 helpful instructions in the terminal.
 
-## Start the App (npm)
+## Start the App
+
+### Option 1: Docker (Recommended)
+See [DOCKER.md](DOCKER.md) for detailed Docker setup instructions.
+
+Quick start with Docker Compose:
+```bash
+# Create .env file from example
+cp .env.example .env
+
+# Edit .env with your Spotify credentials
+
+# Build and run
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+### Option 2: npm (Local Development)
 1. Install dependencies:
    - `npm install`
 2. Start the server:
    - `npm start`
 3. Development mode with auto-reload:
    - `npm run dev`
+
+## Project Structure
+
+```
+spotify-codex/
+├── server/              # Server-side code
+│   └── server.js
+├── public/              # Client-side static files
+│   ├── *.html
+│   ├── js/             # Client JavaScript
+│   └── css/            # Stylesheets
+├── storage/            # Data persistence (gitignored)
+│   ├── session_store.json
+│   └── queue_store.json
+├── docs/               # Documentation
+└── node_modules/       # Dependencies
+```
 
 ## Getting Spotify Credentials (Client ID/Secret)
 1. Create a Spotify developer account and open the Spotify Developer Dashboard.

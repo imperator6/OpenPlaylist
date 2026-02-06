@@ -27,7 +27,6 @@ let currentPlaylistId = null;
 let playlistTracks = [];
 let isDragging = false;
 let isReordering = false;
-let defaultPlaylistId = null;
 let currentPlaybackId = null;
 let autoPlayEnabled = true;
 let lastPlaybackIsPlaying = false;
@@ -640,17 +639,6 @@ async function startPlaybackLongPoll() {
   }
 }
 
-async function fetchDefaultPlaylistId() {
-  try {
-    const response = await fetch("/status");
-    if (!response.ok) return;
-    const data = await response.json();
-    defaultPlaylistId = data.defaultPlaylistId || null;
-  } catch (error) {
-    console.error("Default playlist fetch error", error);
-  }
-}
-
 async function fetchPlaylists() {
   if (!playlistSelect) {
     await fetchPlaylistTracks();
@@ -701,17 +689,9 @@ async function fetchPlaylists() {
     }
 
     const stored = localStorage.getItem(PLAYLIST_KEY);
-    let selected = null;
-    if (defaultPlaylistId) {
-      selected = playlists.find((item) => item.id === defaultPlaylistId)
-        ? defaultPlaylistId
-        : null;
-    }
-    if (!selected) {
-      selected = playlists.find((item) => item.id === stored)
-        ? stored
-        : playlists[0].id;
-    }
+    const selected = playlists.find((item) => item.id === stored)
+      ? stored
+      : playlists[0].id;
 
     if (playlistSelect) {
       playlistSelect.value = selected;
@@ -1053,7 +1033,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 startPlaybackLongPoll();
-fetchDefaultPlaylistId().then(fetchPlaylists);
+fetchPlaylists();
 startDevicesLongPoll();
 setInterval(() => {
   // Device updates are now long-polled.

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash([ -f .env ])",
+      "Bash(timeout 5 npm start:*)"
+    ]
+  }
+}
