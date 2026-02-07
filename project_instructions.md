@@ -72,6 +72,44 @@ All instructions below must be followed unless explicitly overridden.
   - Stack trace (when available)
   - Relevant request or operation context
 
+## LOGGING IMPLEMENTATION PATTERN
+This project uses a structured logging system in `server/server.js`:
+
+**Available Functions:**
+- `logDebug(message, context)` - For debugging information (e.g., state changes, detailed flow)
+- `logInfo(message, context)` - For normal application flow (e.g., startup, successful operations)
+- `logWarn(message, context, err)` - For recoverable issues (e.g., missing optional data, retries)
+- `logError(message, context, err)` - For failures requiring investigation
+
+**Usage Pattern:**
+```javascript
+// Simple log
+logInfo("Server started successfully", { port: PORT });
+
+// With context object
+logDebug("activePlaylistImage overwrite in /api/queue/playlist/load", {
+  old: previousValue,
+  new: newValue,
+  playlistId: playlistId
+});
+
+// With error
+logWarn("Failed to persist session store", null, err);
+logError("Spotify API request failed", { endpoint: "/v1/me/player" }, err);
+```
+
+**Context Parameter:**
+- Pass an object with relevant key-value pairs
+- Values are automatically JSON-stringified if objects
+- Null values are logged as "null"
+- Undefined values are skipped
+
+**When to Use:**
+- DEBUG: State changes, conditional branches, detailed flow tracking
+- INFO: Successful operations, startup/shutdown, major milestones
+- WARN: Unexpected but recoverable situations, missing optional data
+- ERROR: Failures, exceptions, operations that need investigation
+
 ## SECURITY & PRIVACY (LOGGING)
 - NEVER log sensitive data:
   - Passwords

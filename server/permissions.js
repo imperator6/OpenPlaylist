@@ -22,8 +22,8 @@ const PERMISSIONS = {
   "queue:remove:any": "dj",
   "queue:clear": "admin",
   "queue:reorder": "dj",
-  "queue:playlist:select": "admin",
-  "queue:playlist:load": "admin",
+  "queue:playlist:select": "dj",
+  "queue:playlist:load": "dj",
   "queue:autoplay": "admin",
 
   // Playback control
@@ -44,8 +44,8 @@ const PERMISSIONS = {
   // Playlist management (Spotify playlists)
   "playlist:view": "guest",
   "playlist:play": "dj",
-  "playlist:add": "admin",
-  "playlist:reorder": "admin"
+  "playlist:add": "dj",
+  "playlist:reorder": "dj"
 };
 
 /**

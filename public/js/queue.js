@@ -5,6 +5,9 @@ const queueList = document.getElementById("queue-list");
 const queueCardTemplate = document.getElementById("queue-card");
 const queueStatus = document.getElementById("queue-status");
 const queueError = document.getElementById("queue-error");
+const activePlaylistName = document.getElementById("active-playlist-name");
+const activePlaylistImage = document.getElementById("active-playlist-image");
+const activePlaylistSummary = document.getElementById("active-playlist-summary");
 const queuePlacement = document.getElementById("queue-placement");
 const playlistSelect = document.getElementById("playlist-select");
 const playPlaylistBtn = document.getElementById("play-playlist-btn");
@@ -135,6 +138,26 @@ function setPlacementMessage(message) {
 function setQueueError(message) {
   if (!queueError) return;
   queueError.textContent = message || "";
+}
+
+function renderActivePlaylistSummary(name, imageUrl) {
+  if (activePlaylistName) {
+    activePlaylistName.textContent = name || "No playlist selected.";
+  }
+
+  if (activePlaylistImage) {
+    if (imageUrl) {
+      activePlaylistImage.src = imageUrl;
+      activePlaylistImage.style.display = "";
+    } else {
+      activePlaylistImage.removeAttribute("src");
+      activePlaylistImage.style.display = "none";
+    }
+  }
+
+  if (activePlaylistSummary) {
+    activePlaylistSummary.style.display = name ? "flex" : "";
+  }
 }
 
 function openSearchOverlay(trigger) {
@@ -900,6 +923,7 @@ async function fetchPlaylistTracks() {
 
     const data = await response.json();
     currentPlaylistId = data.playlistId || null;
+    renderActivePlaylistSummary(data.playlistName || "", data.playlistImage || "");
     playlistTracks = data.tracks || [];
     autoPlayEnabled = Boolean(data.autoPlayEnabled);
     renderAutoplayState(autoPlayEnabled);

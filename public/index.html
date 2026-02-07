@@ -172,7 +172,13 @@
     <section class="queue-section">
       <div class="queue-header">
         <div>
-          <h2>Up next (Playlist waiting list)</h2>
+          <h2>Active Party Playlist</h2>
+          <div class="active-playlist-summary" id="active-playlist-summary" aria-live="polite">
+            <div class="playlist-cover">
+              <img id="active-playlist-image" alt="Active playlist cover" />
+            </div>
+            <p class="subtle" id="active-playlist-name">No playlist selected.</p>
+          </div>
           <p class="subtle" id="queue-status"></p>
           <p class="error" id="queue-error" role="alert"></p>
           <div class="playback-status">

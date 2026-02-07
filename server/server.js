@@ -39,6 +39,7 @@ const sharedSession = {
 const sharedQueue = {
   activePlaylistId: null,
   activePlaylistName: null,
+  activePlaylistImage: null,
   tracks: [],
   updatedAt: null,
   currentIndex: 0,
@@ -179,6 +180,15 @@ function readQueueStore() {
     const data = JSON.parse(raw);
     sharedQueue.activePlaylistId = data.activePlaylistId || null;
     sharedQueue.activePlaylistName = data.activePlaylistName || null;
+    const newImage = data.activePlaylistImage || null;
+    if (sharedQueue.activePlaylistImage !== newImage) {
+      logDebug("activePlaylistImage overwrite in readQueueStore", {
+        old: sharedQueue.activePlaylistImage,
+        new: newImage,
+        playlistId: data.activePlaylistId
+      });
+    }
+    sharedQueue.activePlaylistImage = newImage;
     let didNormalize = false;
     sharedQueue.tracks = Array.isArray(data.tracks)
       ? data.tracks.map((track) => {
@@ -228,6 +238,7 @@ function persistQueueStore() {
     const data = {
       activePlaylistId: sharedQueue.activePlaylistId,
       activePlaylistName: sharedQueue.activePlaylistName,
+      activePlaylistImage: sharedQueue.activePlaylistImage,
       tracks: sharedQueue.tracks,
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
@@ -1410,10 +1421,17 @@ const server = http.createServer(async (req, res) => {
         ? limitRaw
         : 12;
 
+    const offsetRaw = Number(url.searchParams.get("offset"));
+    const offset =
+      Number.isInteger(offsetRaw) && offsetRaw >= 0
+        ? offsetRaw
+        : 0;
+
     const params = new URLSearchParams({
       q: query,
       type: "playlist",
       limit: String(limit),
+      offset: String(offset),
       market: "from_token"
     });
 
@@ -1814,6 +1832,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       playlistId: sharedQueue.activePlaylistId,
       playlistName: sharedQueue.activePlaylistName,
+      playlistImage: sharedQueue.activePlaylistImage,
       tracks: sharedQueue.tracks,
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
@@ -1935,12 +1954,22 @@ const server = http.createServer(async (req, res) => {
 
     const playlistId = body.playlistId || "";
     const playlistName = body.playlistName || "";
+    const playlistImage = body.playlistImage || "";
     if (!playlistId) {
       return sendJson(res, 400, { error: "Missing playlistId" });
     }
 
     sharedQueue.activePlaylistId = playlistId;
     sharedQueue.activePlaylistName = playlistName || null;
+    const newImage = playlistImage || null;
+    if (sharedQueue.activePlaylistImage !== newImage) {
+      logDebug("activePlaylistImage overwrite in /api/queue/playlist/activate", {
+        old: sharedQueue.activePlaylistImage,
+        new: newImage,
+        playlistId: playlistId
+      });
+    }
+    sharedQueue.activePlaylistImage = newImage;
     sharedQueue.updatedAt = new Date().toISOString();
     if (
       !Number.isInteger(sharedQueue.currentIndex) ||
@@ -1953,7 +1982,8 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       ok: true,
       playlistId: sharedQueue.activePlaylistId,
-      playlistName: sharedQueue.activePlaylistName
+      playlistName: sharedQueue.activePlaylistName,
+      playlistImage: sharedQueue.activePlaylistImage
     });
   }
 
@@ -1975,7 +2005,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     const playlistId = body.playlistId || "";
-    const playlistName = body.playlistName || "";
+    let playlistName = body.playlistName || "";
+    let playlistImage = body.playlistImage || "";
     if (!playlistId) {
       return sendJson(res, 400, { error: "Missing playlistId" });
     }
@@ -1999,6 +2030,34 @@ const server = http.createServer(async (req, res) => {
     }
 
     const data = await response.json();
+    if (!playlistName || !playlistImage) {
+      try {
+        const playlistMetaRes = await fetch(
+          `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,images`,
+          {
+            headers: {
+              Authorization: `Bearer ${sharedSession.token}`
+            }
+          }
+        );
+        if (playlistMetaRes.ok) {
+          const playlistMeta = await playlistMetaRes.json();
+          if (!playlistName) {
+            playlistName = playlistMeta.name || "";
+          }
+          if (!playlistImage) {
+            playlistImage =
+              playlistMeta.images &&
+              playlistMeta.images[0] &&
+              playlistMeta.images[0].url
+                ? playlistMeta.images[0].url
+                : "";
+          }
+        }
+      } catch (error) {
+        logWarn("Playlist metadata fetch failed", { playlistId }, error);
+      }
+    }
     const items = Array.isArray(data.items) ? data.items : [];
     const addedAt = new Date().toISOString();
     const tracks = items
@@ -2021,6 +2080,15 @@ const server = http.createServer(async (req, res) => {
 
     sharedQueue.activePlaylistId = playlistId;
     sharedQueue.activePlaylistName = playlistName || null;
+    const newImage = playlistImage || null;
+    if (sharedQueue.activePlaylistImage !== newImage) {
+      logDebug("activePlaylistImage overwrite in /api/queue/playlist/load", {
+        old: sharedQueue.activePlaylistImage,
+        new: newImage,
+        playlistId: playlistId
+      });
+    }
+    sharedQueue.activePlaylistImage = newImage;
     sharedQueue.tracks = tracks;
     sharedQueue.updatedAt = new Date().toISOString();
     sharedQueue.currentIndex = 0;
@@ -2032,6 +2100,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       playlistId: sharedQueue.activePlaylistId,
       playlistName: sharedQueue.activePlaylistName,
+      playlistImage: sharedQueue.activePlaylistImage,
       tracks: sharedQueue.tracks
     });
   }
