@@ -18,6 +18,12 @@ const searchResults = document.getElementById("queue-results");
 const searchTemplate = document.getElementById("search-card");
 const queueOverlay = document.getElementById("queue-overlay");
 const queueOverlayClose = document.getElementById("queue-overlay-close");
+const queueConfirmModal = document.getElementById("queue-confirm-modal");
+const queueConfirmTitle = document.getElementById("queue-confirm-title");
+const queueConfirmMessage = document.getElementById("queue-confirm-message");
+const queueConfirmClose = document.getElementById("queue-confirm-close");
+const queueConfirmCancel = document.getElementById("queue-confirm-cancel");
+const queueConfirmAccept = document.getElementById("queue-confirm-accept");
 
 const REFRESH_INTERVAL_MS = 8000;
 const SESSION_PAGE = "session.html";
@@ -39,6 +45,76 @@ let devicesSince = null;
 let lastOverlayTrigger = null;
 let pendingInsertIndex = null;
 let pendingInsertLabel = "";
+let queueConfirmResolver = null;
+let queueConfirmLastFocus = null;
+
+function resolveQueueConfirm(result) {
+  if (queueConfirmResolver) {
+    const resolver = queueConfirmResolver;
+    queueConfirmResolver = null;
+    resolver(result);
+  }
+}
+
+function closeQueueConfirmDialog(confirmed) {
+  if (!queueConfirmModal) {
+    resolveQueueConfirm(Boolean(confirmed));
+    return;
+  }
+  queueConfirmModal.classList.remove("is-open");
+  queueConfirmModal.setAttribute("aria-hidden", "true");
+  if (!document.querySelector(".modal.is-open")) {
+    document.body.classList.remove("modal-open");
+  }
+  if (queueConfirmLastFocus && typeof queueConfirmLastFocus.focus === "function") {
+    queueConfirmLastFocus.focus();
+  }
+  queueConfirmLastFocus = null;
+  resolveQueueConfirm(Boolean(confirmed));
+}
+
+function openQueueConfirmDialog(options = {}) {
+  const title = options.title || "Confirm action";
+  const message = options.message || "Are you sure you want to continue?";
+  const confirmLabel = options.confirmLabel || "Confirm";
+  const confirmVariant = options.confirmVariant === "danger" ? "danger" : "primary";
+
+  if (
+    !queueConfirmModal ||
+    !queueConfirmTitle ||
+    !queueConfirmMessage ||
+    !queueConfirmAccept
+  ) {
+    return Promise.resolve(window.confirm(message));
+  }
+
+  if (queueConfirmResolver) {
+    closeQueueConfirmDialog(false);
+  }
+
+  queueConfirmLastFocus =
+    document.activeElement && typeof document.activeElement.focus === "function"
+      ? document.activeElement
+      : null;
+
+  queueConfirmTitle.textContent = title;
+  queueConfirmMessage.textContent = message;
+  queueConfirmAccept.textContent = confirmLabel;
+  queueConfirmAccept.classList.remove("primary", "danger");
+  queueConfirmAccept.classList.add(confirmVariant);
+
+  queueConfirmModal.classList.add("is-open");
+  queueConfirmModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+
+  requestAnimationFrame(() => {
+    queueConfirmAccept.focus();
+  });
+
+  return new Promise((resolve) => {
+    queueConfirmResolver = resolve;
+  });
+}
 
 function setQueueStatus(message, showSaving) {
   if (showSaving) {
@@ -358,7 +434,15 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
           "</svg>";
       }
       removeButton.addEventListener("click", () => {
-        removeTrackAt(index);
+        openQueueConfirmDialog({
+          title: "Remove track?",
+          message: `Remove "${item.title}" from the waiting list?`,
+          confirmLabel: "Remove",
+          confirmVariant: "danger"
+        }).then((confirmed) => {
+          if (!confirmed) return;
+          removeTrackAt(index);
+        });
       });
     }
   }
@@ -372,7 +456,14 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     } else {
       playButton.addEventListener("click", () => {
         if (!item.uri) return;
-        playSingleTrack(item.uri, item.id);
+        openQueueConfirmDialog({
+          title: "Play this track now?",
+          message: `Start "${item.title}" immediately on Spotify?`,
+          confirmLabel: "Play now"
+        }).then((confirmed) => {
+          if (!confirmed) return;
+          playSingleTrack(item.uri, item.id);
+        });
       });
     }
   }
@@ -1019,7 +1110,15 @@ document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-open-search]");
   if (!target) return;
   event.preventDefault();
-  openSearchOverlay(target);
+  const trackTitle = target.dataset.title || "selected track";
+  openQueueConfirmDialog({
+    title: "Add a song here?",
+    message: `Open search to insert a song after "${trackTitle}"?`,
+    confirmLabel: "Continue"
+  }).then((confirmed) => {
+    if (!confirmed) return;
+    openSearchOverlay(target);
+  });
 });
 
 if (queueOverlayClose) {
@@ -1037,10 +1136,40 @@ if (queueOverlay) {
 }
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && queueConfirmModal && queueConfirmModal.classList.contains("is-open")) {
+    closeQueueConfirmDialog(false);
+    return;
+  }
   if (event.key !== "Escape") return;
   if (!queueOverlay || !queueOverlay.classList.contains("is-open")) return;
   closeSearchOverlay();
 });
+
+if (queueConfirmClose) {
+  queueConfirmClose.addEventListener("click", () => {
+    closeQueueConfirmDialog(false);
+  });
+}
+
+if (queueConfirmCancel) {
+  queueConfirmCancel.addEventListener("click", () => {
+    closeQueueConfirmDialog(false);
+  });
+}
+
+if (queueConfirmAccept) {
+  queueConfirmAccept.addEventListener("click", () => {
+    closeQueueConfirmDialog(true);
+  });
+}
+
+if (queueConfirmModal) {
+  queueConfirmModal.addEventListener("click", (event) => {
+    if (event.target === queueConfirmModal) {
+      closeQueueConfirmDialog(false);
+    }
+  });
+}
 
 async function initializeQueue() {
   if (window.authAPI) {
