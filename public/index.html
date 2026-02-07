@@ -92,24 +92,6 @@
         </button>
       </div>
       <header class="queue-hero">
-        <div class="hero-header-content">
-          <div>
-            <p class="eyebrow">Now Playing</p>
-            <h1>Control playback from your phone</h1>
-            <p class="lede">
-              Choose a device, toggle auto-play, and keep an eye on the current
-              track. Use the tabs below to manage your queue or playlists.
-            </p>
-          </div>
-          <button
-            class="danger load-queue-btn"
-            id="home-load-queue-btn"
-            type="button"
-            data-role-required="admin"
-          >
-            Load Songs from a Playlist
-          </button>
-        </div>
         <section class="playback-widget" aria-live="polite">
           <button
             class="primary home-start-playback"
@@ -164,6 +146,14 @@
               <p class="status" id="home-playback-status"></p>
               <p class="hint" id="home-playback-hint"></p>
             </div>
+            <button
+            class="danger load-queue-btn"
+            id="home-load-queue-btn"
+            type="button"
+            data-role-required="admin"
+          >
+            Load Songs from a Playlist
+          </button>
           </div>
         </div>
         <div class="queue-overlay" id="queue-overlay" aria-hidden="true">

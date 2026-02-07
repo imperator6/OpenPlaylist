@@ -26,7 +26,7 @@ body {
 .page {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 44px 0px 120px;
+  padding: 44px 5px 120px;
 }
 
 .menu {
@@ -1065,11 +1065,11 @@ h1 {
   display: grid;
   gap: 1.5rem;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  margin-bottom: 1.5rem;
+  margin-bottom: 0rem;
 }
 
 .queue-section {
-  margin-top: 1.5rem;
+  margin-top: 0rem;
 }
 
 .queue-overlay {
@@ -1732,7 +1732,7 @@ body.menu-open {
 
 @media (max-width: 640px) {
   .page {
-    padding: 44px 0px 64px;
+    padding: 44px 10px 64px;
   }
 
   .playback-widget {

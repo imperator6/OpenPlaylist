@@ -150,42 +150,30 @@ async function fetchStatus() {
 }
 
 function setHomeQueueStatus(count) {
-  if (!homeQueueStatus) return;
-  const text = homeQueueStatus.querySelector(".queue-count-text");
-  if (!text) return;
   homeQueueCount = typeof count === "number" ? count : null;
 
-  const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
-  const isAdmin = currentUser && currentUser.role === "admin";
+  if (homeQueueStatus) {
+    const text = homeQueueStatus.querySelector(".queue-count-text");
+    if (text) {
+      const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
+      const isAdmin = currentUser && currentUser.role === "admin";
+      if (!count) {
+        text.textContent = "Queue is empty.";
+        if (homeLoadQueueBtn && isAdmin) homeLoadQueueBtn.style.display = "inline-flex";
+        if (homeClearQueueBtn) homeClearQueueBtn.style.display = "none";
+      } else {
+        text.textContent = `${count} track${count === 1 ? "" : "s"} in the queue.`;
+        if (homeLoadQueueBtn) homeLoadQueueBtn.style.display = "none";
+        if (homeClearQueueBtn && isAdmin) homeClearQueueBtn.style.display = "inline-flex";
+      }
+    }
+  }
 
-  if (!count) {
-    text.textContent = "Queue is empty.";
-    if (homeLoadQueueBtn && isAdmin) {
-      homeLoadQueueBtn.style.display = "inline-flex";
-    }
-    if (homeClearQueueBtn) {
-      homeClearQueueBtn.style.display = "none";
-    }
-    if (homeAutoplayToggle) {
-      homeAutoplayToggle.disabled = true;
-    }
-    if (homeStartPlaybackBtn) {
-      homeStartPlaybackBtn.disabled = true;
-    }
-    return;
-  }
-  text.textContent = `${count} track${count === 1 ? "" : "s"} in the queue.`;
-  if (homeLoadQueueBtn) {
-    homeLoadQueueBtn.style.display = "none";
-  }
-  if (homeClearQueueBtn && isAdmin) {
-    homeClearQueueBtn.style.display = "inline-flex";
-  }
   if (homeAutoplayToggle) {
-    homeAutoplayToggle.disabled = false;
+    homeAutoplayToggle.disabled = !count;
   }
   if (homeStartPlaybackBtn) {
-    homeStartPlaybackBtn.disabled = false;
+    homeStartPlaybackBtn.disabled = !count;
   }
 }
 
