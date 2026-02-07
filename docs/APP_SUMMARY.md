@@ -40,6 +40,7 @@ open-playlist/
 - Queue tracks include a `source` field: `playlist` when loaded from the waiting-list playlist and `user` when added by users (search or recently played). User-sourced tracks are visually highlighted in the queue list.
 - User-sourced queue items render an extra row with a user icon, the name "Tino", and a placeholder time string for future updates.
 - `playlist.html`: Choose the waiting-list playlist, start playback, and search public playlists.
+- On `playlist.html`, changing the dropdown only updates local selection; `activePlaylist*` in `queue_store.json` is updated only when `Load playlist` is confirmed.
 - `recently.html`: View recently played tracks and add one as next in the queue.
 - `session.html`: Connect/disconnect Spotify and view session details.
 

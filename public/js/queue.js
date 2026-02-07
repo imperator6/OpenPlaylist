@@ -7,6 +7,8 @@ const queueStatus = document.getElementById("queue-status");
 const queueError = document.getElementById("queue-error");
 const activePlaylistName = document.getElementById("active-playlist-name");
 const activePlaylistImage = document.getElementById("active-playlist-image");
+const activePlaylistMeta = document.getElementById("active-playlist-meta");
+const activePlaylistDesc = document.getElementById("active-playlist-desc");
 const activePlaylistSummary = document.getElementById("active-playlist-summary");
 const queuePlacement = document.getElementById("queue-placement");
 const playlistSelect = document.getElementById("playlist-select");
@@ -140,7 +142,12 @@ function setQueueError(message) {
   queueError.textContent = message || "";
 }
 
-function renderActivePlaylistSummary(name, imageUrl) {
+function renderActivePlaylistSummary(info) {
+  const name = info.name || "";
+  const imageUrl = info.image || "";
+  const owner = info.owner || "";
+  const trackCount = info.trackCount;
+
   if (activePlaylistName) {
     activePlaylistName.textContent = name || "No playlist selected.";
   }
@@ -153,6 +160,19 @@ function renderActivePlaylistSummary(name, imageUrl) {
       activePlaylistImage.removeAttribute("src");
       activePlaylistImage.style.display = "none";
     }
+  }
+
+  if (activePlaylistMeta) {
+    const parts = [];
+    if (owner) parts.push(`By ${owner}`);
+    if (Number.isInteger(trackCount)) parts.push(`${trackCount} tracks`);
+    activePlaylistMeta.textContent = parts.join(" \u00b7 ");
+  }
+
+  if (activePlaylistDesc) {
+    var description = info.description || "";
+    activePlaylistDesc.textContent = description;
+    activePlaylistDesc.style.display = description ? "" : "none";
   }
 
   if (activePlaylistSummary) {
@@ -923,7 +943,13 @@ async function fetchPlaylistTracks() {
 
     const data = await response.json();
     currentPlaylistId = data.playlistId || null;
-    renderActivePlaylistSummary(data.playlistName || "", data.playlistImage || "");
+    renderActivePlaylistSummary({
+      name: data.playlistName || "",
+      image: data.playlistImage || "",
+      owner: data.playlistOwner || "",
+      trackCount: data.playlistTrackCount != null ? data.playlistTrackCount : null,
+      description: data.playlistDescription || ""
+    });
     playlistTracks = data.tracks || [];
     autoPlayEnabled = Boolean(data.autoPlayEnabled);
     renderAutoplayState(autoPlayEnabled);

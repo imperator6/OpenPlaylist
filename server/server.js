@@ -40,6 +40,9 @@ const sharedQueue = {
   activePlaylistId: null,
   activePlaylistName: null,
   activePlaylistImage: null,
+  activePlaylistOwner: null,
+  activePlaylistTrackCount: null,
+  activePlaylistDescription: null,
   tracks: [],
   updatedAt: null,
   currentIndex: 0,
@@ -189,6 +192,9 @@ function readQueueStore() {
       });
     }
     sharedQueue.activePlaylistImage = newImage;
+    sharedQueue.activePlaylistOwner = data.activePlaylistOwner || null;
+    sharedQueue.activePlaylistTrackCount = data.activePlaylistTrackCount != null ? data.activePlaylistTrackCount : null;
+    sharedQueue.activePlaylistDescription = data.activePlaylistDescription || null;
     let didNormalize = false;
     sharedQueue.tracks = Array.isArray(data.tracks)
       ? data.tracks.map((track) => {
@@ -239,6 +245,9 @@ function persistQueueStore() {
       activePlaylistId: sharedQueue.activePlaylistId,
       activePlaylistName: sharedQueue.activePlaylistName,
       activePlaylistImage: sharedQueue.activePlaylistImage,
+      activePlaylistOwner: sharedQueue.activePlaylistOwner,
+      activePlaylistTrackCount: sharedQueue.activePlaylistTrackCount,
+      activePlaylistDescription: sharedQueue.activePlaylistDescription,
       tracks: sharedQueue.tracks,
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
@@ -1431,8 +1440,7 @@ const server = http.createServer(async (req, res) => {
       q: query,
       type: "playlist",
       limit: String(limit),
-      offset: String(offset),
-      market: "from_token"
+      offset: String(offset)
     });
 
     const response = await fetch(
@@ -1455,6 +1463,45 @@ const server = http.createServer(async (req, res) => {
 
     const data = await response.json();
     return sendJson(res, 200, data);
+  }
+
+  if (pathname.match(/^\/api\/playlists\/([^/]+)\/follow$/) && req.method === "PUT") {
+    if (!requirePermission(req, res, "playlist:follow")) {
+      return;
+    }
+    if (!(await ensureValidToken(sharedSession))) {
+      return sendJson(res, 401, { error: "Not connected" });
+    }
+
+    const playlistId = pathname.split("/")[3];
+    if (!playlistId) {
+      return sendJson(res, 400, { error: "Missing playlist ID" });
+    }
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/followers`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sharedSession.token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ public: false })
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      logError("Spotify playlist follow failed", {
+        status: response.status,
+        playlistId,
+        body: text
+      });
+      return sendJson(res, 502, { error: "Failed to save playlist" });
+    }
+
+    logInfo("Playlist followed", { playlistId });
+    return sendJson(res, 200, { ok: true });
   }
 
   if (pathname === "/api/track-search") {
@@ -1833,6 +1880,9 @@ const server = http.createServer(async (req, res) => {
       playlistId: sharedQueue.activePlaylistId,
       playlistName: sharedQueue.activePlaylistName,
       playlistImage: sharedQueue.activePlaylistImage,
+      playlistOwner: sharedQueue.activePlaylistOwner,
+      playlistTrackCount: sharedQueue.activePlaylistTrackCount,
+      playlistDescription: sharedQueue.activePlaylistDescription,
       tracks: sharedQueue.tracks,
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
@@ -2030,10 +2080,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     const data = await response.json();
-    if (!playlistName || !playlistImage) {
+    let playlistOwner = body.playlistOwner || "";
+    let playlistTrackCount = body.playlistTrackCount != null ? body.playlistTrackCount : null;
+    let playlistDescription = body.playlistDescription || "";
+
+    const needsMeta = !playlistName || !playlistImage || !playlistOwner;
+    if (needsMeta) {
       try {
         const playlistMetaRes = await fetch(
-          `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,images`,
+          `https://api.spotify.com/v1/playlists/${playlistId}?fields=name,images,owner(display_name),description,tracks(total)`,
           {
             headers: {
               Authorization: `Bearer ${sharedSession.token}`
@@ -2052,6 +2107,21 @@ const server = http.createServer(async (req, res) => {
               playlistMeta.images[0].url
                 ? playlistMeta.images[0].url
                 : "";
+          }
+          if (!playlistOwner) {
+            playlistOwner =
+              playlistMeta.owner && playlistMeta.owner.display_name
+                ? playlistMeta.owner.display_name
+                : "";
+          }
+          if (playlistTrackCount === null) {
+            playlistTrackCount =
+              playlistMeta.tracks && Number.isInteger(playlistMeta.tracks.total)
+                ? playlistMeta.tracks.total
+                : null;
+          }
+          if (!playlistDescription) {
+            playlistDescription = playlistMeta.description || "";
           }
         }
       } catch (error) {
@@ -2089,6 +2159,9 @@ const server = http.createServer(async (req, res) => {
       });
     }
     sharedQueue.activePlaylistImage = newImage;
+    sharedQueue.activePlaylistOwner = playlistOwner || null;
+    sharedQueue.activePlaylistTrackCount = playlistTrackCount;
+    sharedQueue.activePlaylistDescription = playlistDescription || null;
     sharedQueue.tracks = tracks;
     sharedQueue.updatedAt = new Date().toISOString();
     sharedQueue.currentIndex = 0;
@@ -2101,6 +2174,9 @@ const server = http.createServer(async (req, res) => {
       playlistId: sharedQueue.activePlaylistId,
       playlistName: sharedQueue.activePlaylistName,
       playlistImage: sharedQueue.activePlaylistImage,
+      playlistOwner: sharedQueue.activePlaylistOwner,
+      playlistTrackCount: sharedQueue.activePlaylistTrackCount,
+      playlistDescription: sharedQueue.activePlaylistDescription,
       tracks: sharedQueue.tracks
     });
   }

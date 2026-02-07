@@ -45,7 +45,8 @@ const PERMISSIONS = {
   "playlist:view": "guest",
   "playlist:play": "dj",
   "playlist:add": "dj",
-  "playlist:reorder": "dj"
+  "playlist:reorder": "dj",
+  "playlist:follow": "admin"
 };
 
 /**

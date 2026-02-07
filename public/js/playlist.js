@@ -11,6 +11,12 @@ const playlistSearchResults = document.getElementById(
 );
 const playlistSearchActions = document.getElementById("playlist-search-actions");
 
+const loadConfirmModal = document.getElementById("load-confirm-modal");
+const loadConfirmName = document.getElementById("load-confirm-name");
+const loadConfirmClose = document.getElementById("load-confirm-close");
+const loadConfirmCancel = document.getElementById("load-confirm-cancel");
+const loadConfirmAccept = document.getElementById("load-confirm-accept");
+
 const PLAYLIST_KEY = "waiting_list_playlist";
 const SEARCH_LIMIT = 12;
 
@@ -98,13 +104,48 @@ function renderSearchResults(items, append = false) {
     return;
   }
 
+  const canFollowPlaylist =
+    window.authAPI && window.authAPI.hasPermission("playlist:follow");
+
   items.forEach((playlist) => {
     const item = document.createElement("li");
     item.className = "playlist-card";
 
-    let loadButton = null;
+    const actions = document.createElement("div");
+    actions.className = "playlist-actions";
+
+    if (canFollowPlaylist) {
+      const followBtn = document.createElement("button");
+      followBtn.type = "button";
+      followBtn.className = "playlist-follow-btn";
+      followBtn.setAttribute("aria-label", "Save to my playlists");
+      followBtn.title = "Save to my playlists";
+      followBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<path d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"/>' +
+        "</svg>";
+      followBtn.addEventListener("click", async () => {
+        followBtn.disabled = true;
+        try {
+          const resp = await fetch(`/api/playlists/${encodeURIComponent(playlist.id)}/follow`, {
+            method: "PUT"
+          });
+          if (resp.ok) {
+            followBtn.classList.add("is-saved");
+            followBtn.title = "Saved";
+            followBtn.setAttribute("aria-label", "Saved to my playlists");
+          } else {
+            followBtn.disabled = false;
+          }
+        } catch {
+          followBtn.disabled = false;
+        }
+      });
+      actions.appendChild(followBtn);
+    }
+
     if (canLoadPlaylist) {
-      loadButton = document.createElement("button");
+      const loadButton = document.createElement("button");
       loadButton.type = "button";
       loadButton.className = "playlist-load-btn";
       loadButton.setAttribute("aria-label", "Load playlist");
@@ -115,8 +156,19 @@ function renderSearchResults(items, append = false) {
         '<path d="M5 14a1 1 0 0 1 1 1v3h12v-3a1 1 0 1 1 2 0v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"></path>' +
         "</svg>";
       loadButton.addEventListener("click", () => {
-        loadPlaylistById(playlist.id, playlist.name);
+        const owner = playlist.owner && playlist.owner.display_name
+          ? playlist.owner.display_name : "";
+        const trackCount = playlist.tracks && Number.isInteger(playlist.tracks.total)
+          ? playlist.tracks.total : null;
+        confirmLoadPlaylist(playlist.id, {
+          name: playlist.name || "",
+          image: imageUrl,
+          owner,
+          trackCount,
+          description: playlist.description || ""
+        });
       });
+      actions.appendChild(loadButton);
     }
 
     const cover = document.createElement("div");
@@ -163,19 +215,20 @@ function renderSearchResults(items, append = false) {
 
     item.appendChild(cover);
     item.appendChild(body);
-    if (loadButton) {
-      item.appendChild(loadButton);
+    if (actions.children.length) {
+      item.appendChild(actions);
     }
     playlistSearchResults.appendChild(item);
   });
 }
 
-async function loadPlaylistById(playlistId, playlistName) {
+async function loadPlaylistById(playlistId, meta) {
   if (!playlistId) {
     setStatus("Select a playlist first.");
     setHint("Pick a playlist from the dropdown.");
     return;
   }
+  const info = meta || {};
 
   currentPlaylistId = playlistId;
   localStorage.setItem(PLAYLIST_KEY, playlistId);
@@ -195,7 +248,11 @@ async function loadPlaylistById(playlistId, playlistName) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         playlistId,
-        playlistName: playlistName || ""
+        playlistName: info.name || "",
+        playlistImage: info.image || "",
+        playlistOwner: info.owner || "",
+        playlistTrackCount: info.trackCount ?? null,
+        playlistDescription: info.description || ""
       })
     });
 
@@ -216,6 +273,7 @@ async function loadPlaylistById(playlistId, playlistName) {
     const count = Array.isArray(data.tracks) ? data.tracks.length : 0;
     setStatus("Playlist loaded.");
     setHint(`Loaded ${count} track${count === 1 ? "" : "s"} from Spotify.`);
+    renderActivePlaylistCard(data);
   } catch (error) {
     console.error("Load playlist error", error);
     setStatus("Unable to load playlist.");
@@ -223,35 +281,6 @@ async function loadPlaylistById(playlistId, playlistName) {
   }
 }
 
-async function selectActivePlaylist() {
-  if (!currentPlaylistId) return;
-  try {
-    const selectedOption = playlistSelect.options[playlistSelect.selectedIndex];
-    await fetch("/api/queue/playlist/select", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playlistId: currentPlaylistId,
-        playlistName: selectedOption?.textContent,
-        playlistImage: selectedOption?.dataset.image || ""
-      })
-    });
-  } catch (error) {
-    console.error("Playlist select error", error);
-  }
-}
-
-async function loadPlaylistFromSpotify() {
-  if (!currentPlaylistId) {
-    setStatus("Select a playlist first.");
-    setHint("Pick a playlist from the dropdown.");
-    return;
-  }
-
-  const selectedName =
-    playlistSelect.options[playlistSelect.selectedIndex]?.textContent || "";
-  await loadPlaylistById(currentPlaylistId, selectedName);
-}
 async function fetchPlaylists() {
   try {
     setStatus("Loading playlists...", true);
@@ -294,17 +323,35 @@ async function fetchPlaylists() {
       playlistSelect.appendChild(option);
     });
 
-    const stored = localStorage.getItem(PLAYLIST_KEY);
-    const selected = playlists.find((item) => item.id === stored)
-      ? stored
-      : playlists[0].id;
+    // Check what the server already has as active playlist
+    var serverPlaylistId = null;
+    try {
+      var qRes = await fetch("/api/queue/playlist");
+      if (qRes.ok) {
+        var qData = await qRes.json();
+        serverPlaylistId = qData.playlistId || null;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Prefer server's active playlist, then localStorage, then first in list
+    var selected;
+    if (serverPlaylistId && playlists.find(function(item) { return item.id === serverPlaylistId; })) {
+      selected = serverPlaylistId;
+    } else {
+      var stored = localStorage.getItem(PLAYLIST_KEY);
+      selected = playlists.find(function(item) { return item.id === stored; })
+        ? stored
+        : playlists[0].id;
+    }
 
     playlistSelect.value = selected;
     currentPlaylistId = selected;
     localStorage.setItem(PLAYLIST_KEY, selected);
-    await selectActivePlaylist();
+
     setStatus("Playlist selected.");
-    setHint("Press start to begin playback on Spotify.");
+    setHint("Press Load playlist to replace the waiting list.");
   } catch (error) {
     console.error("Playlist fetch error", error);
     setStatus("Unable to load playlists.");
@@ -350,9 +397,8 @@ async function startPlaylistPlayback() {
 playlistSelect.addEventListener("change", async (event) => {
   currentPlaylistId = event.target.value;
   localStorage.setItem(PLAYLIST_KEY, currentPlaylistId);
-  await selectActivePlaylist();
-  setStatus("Playlist updated.");
-  setHint("Press start to begin playback on Spotify.");
+  setStatus("Playlist selected.");
+  setHint("Press Load playlist to replace the waiting list.");
 });
 
 if (playPlaylistBtn) {
@@ -361,13 +407,128 @@ if (playPlaylistBtn) {
   });
 }
 
+let pendingLoadId = null;
+let pendingLoadMeta = null;
+
+function confirmLoadPlaylist(playlistId, meta) {
+  const info = meta || {};
+  if (!loadConfirmModal) {
+    loadPlaylistById(playlistId, info);
+    return;
+  }
+  pendingLoadId = playlistId;
+  pendingLoadMeta = info;
+  if (loadConfirmName) {
+    loadConfirmName.textContent = info.name || "Untitled playlist";
+  }
+  loadConfirmModal.classList.add("is-open");
+  loadConfirmModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeLoadConfirm() {
+  if (!loadConfirmModal) return;
+  loadConfirmModal.classList.remove("is-open");
+  loadConfirmModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  pendingLoadId = null;
+  pendingLoadMeta = null;
+}
+
+if (loadConfirmClose) {
+  loadConfirmClose.addEventListener("click", closeLoadConfirm);
+}
+if (loadConfirmCancel) {
+  loadConfirmCancel.addEventListener("click", closeLoadConfirm);
+}
+if (loadConfirmAccept) {
+  loadConfirmAccept.addEventListener("click", () => {
+    if (pendingLoadId) {
+      loadPlaylistById(pendingLoadId, pendingLoadMeta);
+    }
+    closeLoadConfirm();
+  });
+}
+if (loadConfirmModal) {
+  loadConfirmModal.addEventListener("click", (e) => {
+    if (e.target === loadConfirmModal) closeLoadConfirm();
+  });
+}
+
 if (loadPlaylistBtn) {
   loadPlaylistBtn.addEventListener("click", () => {
-    loadPlaylistFromSpotify();
+    if (!currentPlaylistId) {
+      setStatus("Select a playlist first.");
+      setHint("Pick a playlist from the dropdown.");
+      return;
+    }
+    const selectedOption = playlistSelect.options[playlistSelect.selectedIndex];
+    confirmLoadPlaylist(currentPlaylistId, {
+      name: selectedOption?.textContent || "",
+      image: selectedOption?.dataset.image || ""
+    });
   });
 }
 
 // Queue status card
+// Active playlist card
+const plActivePlaylistSummary = document.getElementById("active-playlist-summary");
+const plActivePlaylistName = document.getElementById("active-playlist-name");
+const plActivePlaylistImage = document.getElementById("active-playlist-image");
+const plActivePlaylistMeta = document.getElementById("active-playlist-meta");
+const plActivePlaylistDesc = document.getElementById("active-playlist-desc");
+
+function renderActivePlaylistCard(data) {
+  if (!plActivePlaylistSummary) return;
+  var name = data.playlistName || "";
+  var imageUrl = data.playlistImage || "";
+  var owner = data.playlistOwner || "";
+  var trackCount = data.playlistTrackCount;
+  var description = data.playlistDescription || "";
+
+  if (!name) {
+    plActivePlaylistSummary.style.display = "none";
+    return;
+  }
+
+  if (plActivePlaylistName) {
+    plActivePlaylistName.textContent = name;
+  }
+  if (plActivePlaylistImage) {
+    if (imageUrl) {
+      plActivePlaylistImage.src = imageUrl;
+      plActivePlaylistImage.style.display = "";
+    } else {
+      plActivePlaylistImage.removeAttribute("src");
+      plActivePlaylistImage.style.display = "none";
+    }
+  }
+  if (plActivePlaylistMeta) {
+    var parts = [];
+    if (owner) parts.push("By " + owner);
+    if (Number.isInteger(trackCount)) parts.push(trackCount + " tracks");
+    plActivePlaylistMeta.textContent = parts.join(" \u00b7 ");
+  }
+  if (plActivePlaylistDesc) {
+    plActivePlaylistDesc.textContent = description;
+    plActivePlaylistDesc.style.display = description ? "" : "none";
+  }
+  plActivePlaylistSummary.style.display = "flex";
+}
+
+async function fetchActivePlaylistCard() {
+  try {
+    var response = await fetch("/api/queue/playlist");
+    if (!response.ok) return;
+    var data = await response.json();
+    renderActivePlaylistCard(data);
+  } catch (e) {
+    // silently ignore
+  }
+}
+
+fetchActivePlaylistCard();
+
 const queueStatusCard = document.getElementById("home-queue-status");
 const clearQueueBtn = document.getElementById("home-clear-queue-btn");
 let queueStreamSince = null;
@@ -456,16 +617,28 @@ async function searchPublicPlaylists(query, offset = 0, append = false) {
     }
 
     const data = await response.json();
-    const items =
+    const rawItems =
       data && data.playlists && Array.isArray(data.playlists.items)
         ? data.playlists.items
         : [];
+    const items = rawItems.filter((item) => item != null);
     const total = data && data.playlists && data.playlists.total ? data.playlists.total : 0;
+    const fetchedCount = rawItems.length;
 
     renderSearchResults(items, append);
 
+    const totalLoaded = playlistSearchResults
+      ? playlistSearchResults.querySelectorAll(".playlist-card").length
+      : items.length;
+
+    setSearchStatus(
+      totalLoaded
+        ? `Showing ${totalLoaded} of ${total} playlist${total === 1 ? "" : "s"}.`
+        : "No public playlists found."
+    );
+
     currentSearchQuery = query;
-    currentSearchOffset = offset + items.length;
+    currentSearchOffset = offset + fetchedCount;
     hasMoreResults = currentSearchOffset < total;
 
     if (hasMoreResults) {
@@ -473,19 +646,9 @@ async function searchPublicPlaylists(query, offset = 0, append = false) {
     } else {
       hideShowMoreButton();
     }
-
-    const totalLoaded = append
-      ? playlistSearchResults.querySelectorAll(".playlist-card").length
-      : items.length;
-
-    setSearchStatus(
-      items.length
-        ? `Showing ${totalLoaded} of ${total} playlist${total === 1 ? "" : "s"}.`
-        : "No public playlists found."
-    );
   } catch (error) {
     console.error("Playlist search error", error);
-    setSearchStatus("Unable to search playlists.");
+    setSearchStatus(`Search failed: ${error.message || "Unknown error"}`);
   }
 }
 
