@@ -10,7 +10,6 @@ const auth = require("./auth");
 const PORT = process.env.PORT || 5173;
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const HOST_PIN = process.env.HOST_PIN || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const DJ_PASSWORD = process.env.DJ_PASSWORD || "";
 const AUTO_REFRESH =
@@ -265,10 +264,6 @@ if (missingEnv.length) {
   process.exit(1);
 }
 
-if (!HOST_PIN) {
-  logWarn("HOST_PIN is not set; host actions are unsecured");
-}
-
 if (!ADMIN_PASSWORD) {
   logWarn("ADMIN_PASSWORD is not set; admin authentication is disabled");
 }
@@ -283,11 +278,6 @@ readQueueStore();
 function sendJson(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(data));
-}
-
-function verifyHostPin(pin) {
-  if (!HOST_PIN) return true;
-  return pin === HOST_PIN;
 }
 
 function verifyAdminPassword(password) {
@@ -973,8 +963,7 @@ const server = http.createServer(async (req, res) => {
       lastRefreshAt: sharedSession.lastRefreshAt || null,
       hasToken: Boolean(sharedSession.token),
       hasRefreshToken: Boolean(sharedSession.refreshToken),
-      hasRedirectUri: Boolean(sharedSession.redirectUri),
-      hostPinRequired: Boolean(HOST_PIN)
+      hasRedirectUri: Boolean(sharedSession.redirectUri)
     });
   }
 
@@ -1128,19 +1117,6 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    let body = {};
-    try {
-      body = await readJsonBody(req);
-    } catch (err) {
-      logWarn("Invalid host connect payload", null, err);
-      return sendJson(res, 400, { error: "Invalid JSON payload" });
-    }
-
-    if (!verifyHostPin(body.pin || "")) {
-      logWarn("Host connect denied");
-      return sendJson(res, 403, { error: "Invalid PIN" });
-    }
-
     const state = crypto.randomBytes(12).toString("hex");
     sharedSession.state = state;
     const redirectUri =
@@ -1220,19 +1196,6 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === "/api/host/logout") {
-    let body = {};
-    try {
-      body = await readJsonBody(req);
-    } catch (err) {
-      logWarn("Invalid host logout payload", null, err);
-      return sendJson(res, 400, { error: "Invalid JSON payload" });
-    }
-
-    if (!verifyHostPin(body.pin || "")) {
-      logWarn("Host logout denied");
-      return sendJson(res, 403, { error: "Invalid PIN" });
-    }
-
     sharedSession.token = null;
     sharedSession.refreshToken = null;
     sharedSession.expiresAt = null;
