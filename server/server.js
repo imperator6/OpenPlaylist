@@ -930,6 +930,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/js/playlist.js") {
     return readStaticFile(path.join(__dirname, "..", "public", "js", "playlist.js"), res);
   }
+  if (pathname === "/js/menu.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "menu.js"), res);
+  }
 
   if (pathname === "/status") {
     return sendJson(res, 200, {
