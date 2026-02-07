@@ -107,7 +107,6 @@
           </div>
           <p class="hint" id="home-device-status"></p>
           <section class="playback-widget" aria-live="polite">
-         
             <button
               class="primary home-start-playback"
               id="home-start-playback-btn"
@@ -135,21 +134,19 @@
               >
                 <span class="icon" aria-hidden="true"></span>
               </button>
-              <div class="home-progress">
-                <div class="home-times">
-                  <span id="home-elapsed">0:00</span>
-                  <span id="home-remaining">-0:00</span>
-                </div>
-                <input
-                  class="home-progress-bar"
-                  id="home-progress-bar"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value="0"
-                  aria-label="Seek position"
-                />
-              </div>
+            </div>
+            <div class="home-progress">
+              <span class="home-time-elapsed" id="home-elapsed">0:00</span>
+              <input
+                class="home-progress-bar"
+                id="home-progress-bar"
+                type="range"
+                min="0"
+                max="100"
+                value="0"
+                aria-label="Seek position"
+              />
+              <span class="home-time-remaining" id="home-remaining">-0:00</span>
             </div>
           </section>
           <div class="queue-status-card" id="home-queue-status">
