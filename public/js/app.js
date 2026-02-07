@@ -17,6 +17,14 @@ const playbackWidget = document.querySelector(".playback-widget");
 const playbackTrack = document.querySelector(".playback-track");
 const playbackControls = document.querySelector(".playback-controls");
 const homeQueueStatus = document.getElementById("home-queue-status");
+
+function updateProgressFill() {
+  if (!homeProgressBar) return;
+  const max = Number(homeProgressBar.max) || 100;
+  const val = Number(homeProgressBar.value) || 0;
+  const pct = max > 0 ? (val / max) * 100 : 0;
+  homeProgressBar.style.setProperty("--progress", pct + "%");
+}
 const homeLoadQueueBtn = document.getElementById("home-load-queue-btn");
 const homeClearQueueBtn = document.getElementById("home-clear-queue-btn");
 const MENU_SESSION_PAGE = "session.html";
@@ -80,6 +88,7 @@ function updateHomeProgress() {
   if (homeProgressBar && !homeIsSeeking) {
     homeProgressBar.max = String(durationMs || 0);
     homeProgressBar.value = String(clamped);
+    updateProgressFill();
   }
   if (homeElapsed) {
     homeElapsed.textContent = formatTimeFromMs(clamped);
@@ -213,6 +222,7 @@ function applyHomePlaybackPayload(data) {
       homeProgressBar.value = "0";
       homeProgressBar.max = "100";
       homeProgressBar.disabled = true;
+      updateProgressFill();
     }
     if (homeElapsed) homeElapsed.textContent = "0:00";
     if (homeRemaining) homeRemaining.textContent = "-0:00";
@@ -572,6 +582,7 @@ if (homeProgressBar) {
     if (homeRemaining) {
       homeRemaining.textContent = `-${formatTimeFromMs(homeProgressState.durationMs - positionMs)}`;
     }
+    updateProgressFill();
   });
 
   homeProgressBar.addEventListener("change", async (event) => {

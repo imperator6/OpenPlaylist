@@ -434,11 +434,12 @@ h1 {
 }
 
 .home-progress-bar {
+  --progress: 0%;
   width: 100%;
   appearance: none;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(to right, #fff var(--progress), rgba(255, 255, 255, 0.3) var(--progress));
   outline: none;
   cursor: pointer;
   transition: height 0.1s ease;
@@ -446,6 +447,12 @@ h1 {
 
 .home-progress-bar:hover {
   height: 6px;
+}
+
+.home-progress-bar::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 100%;
+  border-radius: 999px;
 }
 
 .home-progress-bar::-webkit-slider-thumb {
@@ -457,10 +464,24 @@ h1 {
   border: none;
   opacity: 0;
   transition: opacity 0.2s ease;
+  margin-top: -3px;
 }
 
 .home-progress-bar:hover::-webkit-slider-thumb {
   opacity: 1;
+}
+
+.home-progress-bar::-moz-range-track {
+  background: rgba(255, 255, 255, 0.3);
+  height: 100%;
+  border-radius: 999px;
+  border: none;
+}
+
+.home-progress-bar::-moz-range-progress {
+  background: #fff;
+  border-radius: 999px;
+  height: 100%;
 }
 
 .home-progress-bar::-moz-range-thumb {
