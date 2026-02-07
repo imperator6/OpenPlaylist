@@ -214,7 +214,7 @@ async function submitAdminLogin(password) {
     
     // Redirect to index.html if not already there
     if (!window.location.pathname.endsWith('/index.html') && !window.location.pathname.endsWith('/')) {
-      window.location.href = 'index.html';
+      window.location.href = '/index.html';
     }
     
     return true;
