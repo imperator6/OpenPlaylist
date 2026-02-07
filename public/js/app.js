@@ -1,7 +1,7 @@
 const homePlaybackStatus = document.getElementById("home-playback-status");
 const homePlaybackHint = document.getElementById("home-playback-hint");
 const homeAutoplayToggle = document.getElementById("home-autoplay-toggle");
-const homeDeviceSelect = document.getElementById("home-device-select");
+const homeDeviceList = document.getElementById("device-list");
 const homeDeviceStatus = document.getElementById("home-device-status");
 const homeDeviceRefreshBtn = document.getElementById("home-device-refresh");
 const homeTrackImage = document.getElementById("home-track-image");
@@ -313,14 +313,13 @@ async function startHomePlaybackLongPoll() {
 }
 
 function renderHomeDevices(devices, preferredId) {
-  if (!homeDeviceSelect) return;
-  homeDeviceSelect.innerHTML = "";
+  if (!homeDeviceList) return;
+  homeDeviceList.innerHTML = "";
   if (!devices.length) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "No devices found";
-    homeDeviceSelect.appendChild(option);
-    homeDeviceSelect.disabled = true;
+    const li = document.createElement("li");
+    li.className = "device-item device-item--empty";
+    li.textContent = "No devices found";
+    homeDeviceList.appendChild(li);
     setHomeDeviceStatus("Open Spotify on a device to enable playback.");
     return;
   }
@@ -329,20 +328,24 @@ function renderHomeDevices(devices, preferredId) {
   const effectivePreferred =
     preferredId || homeSelectedDeviceId || (active ? active.id : "");
   devices.forEach((device) => {
-    const option = document.createElement("option");
-    option.value = device.id;
-    option.textContent = device.name;
+    const li = document.createElement("li");
+    li.className = "device-item";
     if (device.id === effectivePreferred) {
-      option.selected = true;
+      li.classList.add("device-item--active");
     }
-    homeDeviceSelect.appendChild(option);
+    li.dataset.deviceId = device.id;
+    li.dataset.deviceName = device.name;
+    li.innerHTML =
+      '<svg class="device-item-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm0 17H7V5h10v14zm-5 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>' +
+      '<span class="device-item-name">' + device.name + "</span>" +
+      (device.id === effectivePreferred ? '<span class="device-item-badge">Active</span>' : "");
+    homeDeviceList.appendChild(li);
   });
-  homeDeviceSelect.disabled = false;
   setHomeDeviceStatus("");
 }
 
 async function startHomeDevicesLongPoll() {
-  if (!homeDeviceSelect) return;
+  if (!homeDeviceList) return;
   try {
     const query = homeDevicesSince ? `?since=${encodeURIComponent(homeDevicesSince)}` : "";
     const response = await fetch(`/api/player/devices/stream${query}`);
@@ -444,20 +447,18 @@ if (homeAutoplayToggle) {
   });
 }
 
-if (homeDeviceSelect) {
-  homeDeviceSelect.addEventListener("change", async (event) => {
-    const target = event.target;
-    const deviceId = target.value;
-    if (!deviceId) return;
+if (homeDeviceList) {
+  homeDeviceList.addEventListener("click", async (event) => {
+    const li = event.target.closest(".device-item[data-device-id]");
+    if (!li) return;
+    const deviceId = li.dataset.deviceId;
+    const deviceName = li.dataset.deviceName || "";
+    if (!deviceId || li.classList.contains("device-item--active")) return;
     try {
       const response = await fetch("/api/player/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId,
-          deviceName: target.options[target.selectedIndex]?.textContent || "",
-          play: true
-        })
+        body: JSON.stringify({ deviceId, deviceName, play: true })
       });
 
       if (!response.ok) {
@@ -469,6 +470,15 @@ if (homeDeviceSelect) {
 
       homeSelectedDeviceId = deviceId;
       setHomeDeviceStatus("Device switched.");
+      homeDeviceList.querySelectorAll(".device-item").forEach((el) => {
+        el.classList.toggle("device-item--active", el.dataset.deviceId === deviceId);
+        const badge = el.querySelector(".device-item-badge");
+        if (el.dataset.deviceId === deviceId && !badge) {
+          el.insertAdjacentHTML("beforeend", '<span class="device-item-badge">Active</span>');
+        } else if (el.dataset.deviceId !== deviceId && badge) {
+          badge.remove();
+        }
+      });
     } catch (error) {
       console.error("Home device transfer error", error);
       setHomeDeviceStatus("Unable to switch device.");

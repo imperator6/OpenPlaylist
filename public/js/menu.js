@@ -27,8 +27,37 @@
   backdrop.addEventListener("click", shut);
 
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && drawer.classList.contains("is-open")) {
-      shut();
+    if (e.key === "Escape") {
+      if (drawer.classList.contains("is-open")) shut();
+      if (deviceOverlay && deviceOverlay.classList.contains("is-open")) shutDevices();
     }
   });
+
+  // Device overlay
+  var deviceBtn = document.getElementById("device-overlay-btn");
+  var deviceOverlay = document.getElementById("device-overlay");
+  var deviceBackdrop = document.getElementById("device-overlay-backdrop");
+  var deviceClose = document.getElementById("device-overlay-close");
+
+  function openDevices() {
+    if (!deviceOverlay) return;
+    deviceOverlay.classList.add("is-open");
+    deviceBackdrop.classList.add("is-open");
+    deviceOverlay.setAttribute("aria-hidden", "false");
+    deviceBackdrop.setAttribute("aria-hidden", "false");
+    document.body.classList.add("overlay-open");
+  }
+
+  function shutDevices() {
+    if (!deviceOverlay) return;
+    deviceOverlay.classList.remove("is-open");
+    deviceBackdrop.classList.remove("is-open");
+    deviceOverlay.setAttribute("aria-hidden", "true");
+    deviceBackdrop.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("overlay-open");
+  }
+
+  if (deviceBtn) deviceBtn.addEventListener("click", openDevices);
+  if (deviceClose) deviceClose.addEventListener("click", shutDevices);
+  if (deviceBackdrop) deviceBackdrop.addEventListener("click", shutDevices);
 })();
