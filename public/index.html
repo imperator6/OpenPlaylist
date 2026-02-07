@@ -101,77 +101,58 @@
               track. Use the tabs below to manage your queue or playlists.
             </p>
           </div>
+          <button
+            class="danger load-queue-btn"
+            id="home-load-queue-btn"
+            type="button"
+            data-role-required="admin"
+          >
+            Load Songs from a Playlist
+          </button>
         </div>
-        <div class="panel home-panel">
-          <div class="now-playing-header">
-            <h2>Playback</h2>
+        <section class="playback-widget" aria-live="polite">
+          <button
+            class="primary home-start-playback"
+            id="home-start-playback-btn"
+            type="button"
+            data-role-required="admin"
+          >
+            Start playback
+          </button>
+          <div class="playback-track">
+            <div class="home-cover">
+              <img id="home-track-image" alt="" />
+            </div>
+            <div class="home-track-info">
+              <p class="meta" id="home-track-album"></p>
+              <h3 id="home-track-title">Nothing playing</h3>
+              <p class="artist" id="home-track-artist"></p>
+            </div>
           </div>
-          <section class="playback-widget" aria-live="polite">
+          <div class="playback-controls" data-role-required="admin">
             <button
-              class="primary home-start-playback"
-              id="home-start-playback-btn"
+              class="ghost home-play-toggle"
+              id="home-play-toggle"
               type="button"
-              data-role-required="admin"
+              aria-label="Play"
             >
-              Start playback
+              <span class="icon" aria-hidden="true"></span>
             </button>
-            <div class="playback-track">
-              <div class="home-cover">
-                <img id="home-track-image" alt="" />
-              </div>
-              <div class="home-track-info">
-                <p class="meta" id="home-track-album"></p>
-                <h3 id="home-track-title">Nothing playing</h3>
-                <p class="artist" id="home-track-artist"></p>
-              </div>
-            </div>
-            <div class="playback-controls" data-role-required="admin">
-              <button
-                class="ghost home-play-toggle"
-                id="home-play-toggle"
-                type="button"
-                aria-label="Play"
-              >
-                <span class="icon" aria-hidden="true"></span>
-              </button>
-            </div>
-            <div class="home-progress">
-              <span class="home-time-elapsed" id="home-elapsed">0:00</span>
-              <input
-                class="home-progress-bar"
-                id="home-progress-bar"
-                type="range"
-                min="0"
-                max="100"
-                value="0"
-                aria-label="Seek position"
-              />
-              <span class="home-time-remaining" id="home-remaining">-0:00</span>
-            </div>
-          </section>
-          <div class="queue-status-card" id="home-queue-status">
-            <p class="meta">Queue status</p>
-            <div class="queue-status-row">
-              <p class="queue-count-text">Loading queue…</p>
-              <button
-                class="danger load-queue-btn"
-                id="home-load-queue-btn"
-                type="button"
-                data-role-required="admin"
-              >
-                Load Songs from a Playlist
-              </button>
-              <button
-                class="ghost clear-queue-btn"
-                id="home-clear-queue-btn"
-                type="button"
-                data-role-required="admin"
-              >
-                Clear queue
-              </button>
-            </div>
           </div>
-        </div>
+          <div class="home-progress">
+            <span class="home-time-elapsed" id="home-elapsed">0:00</span>
+            <input
+              class="home-progress-bar"
+              id="home-progress-bar"
+              type="range"
+              min="0"
+              max="100"
+              value="0"
+              aria-label="Seek position"
+            />
+            <span class="home-time-remaining" id="home-remaining">-0:00</span>
+          </div>
+        </section>
       </header>
       <section class="queue-section">
         <div class="queue-header">

@@ -310,9 +310,71 @@ if (loadPlaylistBtn) {
   });
 }
 
+// Queue status card
+const queueStatusCard = document.getElementById("home-queue-status");
+const clearQueueBtn = document.getElementById("home-clear-queue-btn");
+let queueStreamSince = null;
+
+function setQueueStatus(count) {
+  if (!queueStatusCard) return;
+  const text = queueStatusCard.querySelector(".queue-count-text");
+  if (!text) return;
+  const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
+  const isAdmin = currentUser && currentUser.role === "admin";
+  if (!count) {
+    text.textContent = "Queue is empty.";
+    if (clearQueueBtn) clearQueueBtn.style.display = "none";
+    return;
+  }
+  text.textContent = `${count} track${count === 1 ? "" : "s"} in the queue.`;
+  if (clearQueueBtn && isAdmin) clearQueueBtn.style.display = "inline-flex";
+}
+
+async function startQueuePoll() {
+  if (!queueStatusCard) return;
+  try {
+    const query = queueStreamSince ? `?since=${encodeURIComponent(queueStreamSince)}` : "";
+    const response = await fetch(`/api/queue/stream${query}`);
+    if (!response.ok) {
+      setTimeout(startQueuePoll, 3000);
+      return;
+    }
+    const data = await response.json();
+    queueStreamSince = data.updatedAt || new Date().toISOString();
+    if (typeof data.queueCount === "number") {
+      setQueueStatus(data.queueCount);
+    }
+    startQueuePoll();
+  } catch (error) {
+    console.error("Queue stream error", error);
+    setTimeout(startQueuePoll, 3000);
+  }
+}
+
+if (clearQueueBtn) {
+  clearQueueBtn.addEventListener("click", async () => {
+    const confirmClear = window.confirm(
+      "Clear the waiting list queue? This will remove all tracks."
+    );
+    if (!confirmClear) return;
+    try {
+      const response = await fetch("/api/queue/playlist/clear", {
+        method: "POST"
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Clear queue failed", response.status, text);
+      }
+    } catch (error) {
+      console.error("Clear queue error", error);
+    }
+  });
+}
+
 async function initializePlaylist() {
   await window.authAPI.fetchUserStatus();
   fetchPlaylists();
+  startQueuePoll();
 }
 
 initializePlaylist();
