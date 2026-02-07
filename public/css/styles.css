@@ -39,12 +39,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 0.9rem calc(0.6rem + env(safe-area-inset-top));
+  padding: 0.2rem 0.2rem;
   background: rgba(16, 18, 22, 0.95);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 100;
-  min-height: 3.25rem;
+  min-height: 1.25rem;
 }
 
 .menu-burger {
@@ -52,11 +52,11 @@ body {
   border: none;
   color: var(--text);
   width: 2.5rem;
-  height: 2.5rem;
+  height: 2rem;
   display: grid;
   place-items: center;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 4px;
   transition: background 0.15s ease;
 }
 
