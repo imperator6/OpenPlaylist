@@ -42,6 +42,7 @@ open-playlist/
 - Each queue item displays thumbs-up/thumbs-down vote badges with counts. Guests get one vote per song (toggleable); admins have unlimited votes. Votes store `{ sessionId, name }` per voter, with names updated retroactively when a guest sets their name via `/api/auth/guest/name`. Vote names are enriched from active sessions at serve time for freshness.
 - `playlist.html`: Choose the waiting-list playlist, start playback, and search public playlists.
 - On `playlist.html`, changing the dropdown only updates local selection; `activePlaylist*` in `queue_store.json` is updated only when `Load playlist` is confirmed.
+- When loading a new playlist, the currently playing track from the old queue is preserved at position 0 (duplicates removed from the new list). This ensures uninterrupted playback during playlist switches.
 - `recently.html`: View recently played tracks and add one as next in the queue.
 - `session.html`: Connect/disconnect Spotify and view session details.
 
@@ -77,7 +78,7 @@ open-playlist/
 
 ## Storage
 - `storage/session_store.json`: OAuth tokens + expiry.
-- `storage/queue_store.json`: active playlist id/name, track list (including per-track votes), current index, autoplay state, last error, and device info.
+- `storage/queue_store.json`: active playlist id/name, track list (including per-track votes), current index, autoplay state, last error, and device info. Autoplay state is restored from this file on server start; defaults to off if the file is empty or missing.
 - Storage paths can be overridden via `SESSION_STORE` and `QUEUE_STORE` environment variables.
 
 ## Configuration

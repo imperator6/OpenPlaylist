@@ -171,7 +171,8 @@ function setHomeQueueStatus(count) {
   }
 
   if (homeAutoplayToggle) {
-    homeAutoplayToggle.disabled = !count;
+    const canAutoplay = window.authAPI && window.authAPI.hasPermission("queue:autoplay");
+    homeAutoplayToggle.disabled = !count || !canAutoplay;
   }
   if (homeStartPlaybackBtn) {
     homeStartPlaybackBtn.disabled = !count;

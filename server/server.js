@@ -220,16 +220,15 @@ function readQueueStore() {
       Number.isInteger(data.currentIndex) && data.currentIndex >= 0
         ? data.currentIndex
         : 0;
-    const hadAutoPlayEnabled = typeof data.autoPlayEnabled === "boolean"
+    sharedQueue.autoPlayEnabled = typeof data.autoPlayEnabled === "boolean"
       ? data.autoPlayEnabled
       : false;
-    sharedQueue.autoPlayEnabled = false;
     sharedQueue.lastSeenTrackId = data.lastSeenTrackId || null;
     sharedQueue.lastAdvanceAt = data.lastAdvanceAt || null;
     sharedQueue.lastError = data.lastError || null;
     sharedQueue.activeDeviceId = data.activeDeviceId || null;
     sharedQueue.activeDeviceName = data.activeDeviceName || null;
-    if (didNormalize || hadAutoPlayEnabled) {
+    if (didNormalize) {
       persistQueueStore();
     }
 
@@ -666,6 +665,9 @@ function notifyDeviceSubscribers() {
 const PLAYBACK_CACHE_INTERVAL_MS = 8000;
 const PLAYBACK_CACHE_STALE_MS = 15000;
 setInterval(() => {
+  if (!sharedQueue.autoPlayEnabled) {
+    return;
+  }
   if (!sharedSession.token && !sharedSession.refreshToken) {
     sharedPlaybackCache.lastError = "Not connected";
     return;
@@ -2221,11 +2223,35 @@ const server = http.createServer(async (req, res) => {
     sharedQueue.activePlaylistOwner = playlistOwner || null;
     sharedQueue.activePlaylistTrackCount = playlistTrackCount;
     sharedQueue.activePlaylistDescription = playlistDescription || null;
+
+    // Preserve the currently playing track at position 0
+    var currentTrack = null;
+    if (
+      Array.isArray(sharedQueue.tracks) &&
+      Number.isInteger(sharedQueue.currentIndex) &&
+      sharedQueue.currentIndex >= 0 &&
+      sharedQueue.currentIndex < sharedQueue.tracks.length
+    ) {
+      currentTrack = sharedQueue.tracks[sharedQueue.currentIndex];
+    }
+
+    if (currentTrack && currentTrack.id) {
+      var dupeIndex = tracks.findIndex(function (t) { return t.id === currentTrack.id; });
+      if (dupeIndex >= 0) {
+        tracks.splice(dupeIndex, 1);
+      }
+      tracks.unshift(currentTrack);
+      logInfo("Playlist load: preserved current track at position 0", {
+        trackId: currentTrack.id,
+        title: currentTrack.title
+      });
+    }
+
     sharedQueue.tracks = tracks;
     sharedQueue.updatedAt = new Date().toISOString();
     sharedQueue.currentIndex = 0;
-    sharedQueue.lastSeenTrackId = null;
-    sharedQueue.lastAdvanceAt = null;
+    sharedQueue.lastSeenTrackId = currentTrack ? (currentTrack.id || null) : null;
+    sharedQueue.lastAdvanceAt = currentTrack ? Date.now() : null;
     persistQueueStore();
 
     return sendJson(res, 200, {

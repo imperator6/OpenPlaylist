@@ -144,3 +144,4 @@ If a task conflicts with these rules, ask me.
 - Register a service worker for core static assets; do not cache `/api/*` responses unless explicitly required.
 - Include install metadata on all entry HTML pages (`manifest`, `theme-color`, and Apple touch/meta tags).
 - PWA features must degrade gracefully when service workers or install prompts are unsupported.
+- When any cached static asset changes (HTML, CSS, JS), bump the `APP_CACHE` version string in `public/sw.js` so the service worker invalidates stale caches on the next install.
