@@ -171,8 +171,7 @@ function setHomeQueueStatus(count) {
   }
 
   if (homeAutoplayToggle) {
-    const canAutoplay = window.authAPI && window.authAPI.hasPermission("queue:autoplay");
-    homeAutoplayToggle.disabled = !count || !canAutoplay;
+    homeAutoplayToggle.disabled = !count;
   }
   if (homeStartPlaybackBtn) {
     homeStartPlaybackBtn.disabled = !count;
@@ -198,12 +197,17 @@ function applyHomePlaybackPayload(data) {
   if (typeof data.queueCount === "number") {
     setHomeQueueStatus(data.queueCount);
   }
+  var autoPlayOn = true;
   if (homeAutoplayToggle && typeof data.autoPlayEnabled === "boolean") {
     homeAutoplayToggle.checked = data.autoPlayEnabled;
+    autoPlayOn = data.autoPlayEnabled;
   }
+  var autoPlayOffNotice = !autoPlayOn
+    ? " Auto-play is not active \u2013 active title will not be updated."
+    : "";
   if (!currentItem) {
     setHomePlaybackStatus("Paused", false);
-    setHomePlaybackHint("No active playback found.");
+    setHomePlaybackHint("No active playback found." + autoPlayOffNotice);
     setPlaybackVisibility(false);
     renderHomeTrackDetails(null);
     setHomeStartPlaybackVisibility(true);
@@ -229,7 +233,7 @@ function applyHomePlaybackPayload(data) {
       : Boolean(data.queue && data.queue.is_playing);
   setHomePlaybackStatus(isPlaying ? "Playing" : "Paused", isPlaying);
   setHomePlaybackHint(
-    isPlaying ? "Audio is live right now." : "Playback is currently paused."
+    (isPlaying ? "Audio is live right now." : "Playback is currently paused.") + autoPlayOffNotice
   );
   const track = parseTrack(currentItem);
   setPlaybackVisibility(true);
