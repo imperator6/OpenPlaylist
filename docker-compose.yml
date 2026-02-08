@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     volumes:
-      - spotify-data:/app/storage
+      - ./storage:/app/storage
     environment:
       - SESSION_STORE=/app/storage/session_store.json
       - QUEUE_STORE=/app/storage/queue_store.json
@@ -20,7 +20,3 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
-
-volumes:
-  spotify-data:
-    driver: local

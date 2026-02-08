@@ -14,8 +14,9 @@ RUN npm ci --omit=dev
 COPY server/ ./server/
 COPY public/ ./public/
 
-# Create directories for persistent storage
-RUN mkdir -p /app/storage
+# Copy entrypoint script
+COPY entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
 
 # Set environment variables (can be overridden at runtime)
 ENV PORT=5173
@@ -26,8 +27,10 @@ EXPOSE 5173
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    adduser -S nodejs -u 1001
+
+# Create storage directory with correct ownership
+RUN mkdir -p /app/storage && chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
@@ -35,6 +38,9 @@ USER nodejs
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:${PORT}/status', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use entrypoint script
+ENTRYPOINT ["./entrypoint.sh"]
 
 # Start the application
 CMD ["node", "server/server.js"]
