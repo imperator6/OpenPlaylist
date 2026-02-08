@@ -2424,18 +2424,29 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // Resort queue by net votes if vote-sort is enabled
+    // Resort queue by net votes if vote-sort is enabled.
+    // Voted songs (any like or dislike) are sorted by net votes and
+    // placed at positions 1..N. Unvoted songs keep their relative
+    // order and fill positions after the voted group.
     let didSort = false;
     if (sharedQueue.voteSortEnabled && sharedQueue.tracks.length > 2) {
       const first = sharedQueue.tracks[0];
       const rest = sharedQueue.tracks.slice(1);
-      rest.sort((a, b) => {
-        const aVotes = a.votes ? (a.votes.up.length - a.votes.down.length) : 0;
-        const bVotes = b.votes ? (b.votes.up.length - b.votes.down.length) : 0;
-        return bVotes - aVotes;
+
+      const hasVotes = (t) =>
+        t.votes && (t.votes.up.length > 0 || t.votes.down.length > 0);
+
+      const voted = rest.filter(hasVotes);
+      const unvoted = rest.filter((t) => !hasVotes(t));
+
+      voted.sort((a, b) => {
+        const aNet = a.votes.up.length - a.votes.down.length;
+        const bNet = b.votes.up.length - b.votes.down.length;
+        return bNet - aNet;
       });
-      sharedQueue.tracks = [first, ...rest];
-      didSort = true;
+
+      sharedQueue.tracks = [first, ...voted, ...unvoted];
+      didSort = voted.length > 0;
     }
 
     sharedQueue.updatedAt = new Date().toISOString();
