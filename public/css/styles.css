@@ -1932,6 +1932,10 @@ body.menu-open {
   outline-offset: 4px;
 }
 
+.queue-card.vote-reorder {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .session-grid {
   display: grid;
   gap: 1rem;

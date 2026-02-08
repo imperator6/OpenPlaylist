@@ -26,6 +26,7 @@ const PERMISSIONS = {
   "queue:playlist:load": "dj",
   "queue:vote": "guest",
   "queue:autoplay": "admin",
+  "queue:votesort": "admin",
 
   // Playback control
   "playback:pause": "dj",

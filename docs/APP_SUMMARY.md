@@ -40,6 +40,7 @@ open-playlist/
 - Queue tracks include a `source` field: `playlist` when loaded from the waiting-list playlist and `user` when added by users (search or recently played). User-sourced tracks are visually highlighted in the queue list.
 - User-sourced queue items render an extra row with a user icon, the name "Tino", and a placeholder time string for future updates.
 - Each queue item displays thumbs-up/thumbs-down vote badges with counts. Guests get one vote per song (toggleable); admins have unlimited votes. Votes store `{ sessionId, name }` per voter, with names updated retroactively when a guest sets their name via `/api/auth/guest/name`. Vote names are enriched from active sessions at serve time for freshness.
+- Vote Sort: An admin-only toggle ("Vote sort") in the nav bar enables automatic queue re-sorting by net votes (upvotes minus downvotes) after each vote. The currently-playing track (position 0) is excluded from sorting. When enabled, the UI uses FLIP animations so cards smoothly slide to their new positions after a vote changes the order.
 - `playlist.html`: Choose the waiting-list playlist, start playback, and search public playlists.
 - On `playlist.html`, changing the dropdown only updates local selection; `activePlaylist*` in `queue_store.json` is updated only when `Load playlist` is confirmed.
 - When loading a new playlist, the currently playing track from the old queue is preserved at position 0 (duplicates removed from the new list). This ensures uninterrupted playback during playlist switches.
@@ -62,7 +63,7 @@ open-playlist/
 - Auth/session: `/status`, `/api/host/connect`, `/api/host/logout`, `/callback`
 - Spotify data (server-side): `/api/playlists`, `/api/playlists/search`, `/api/recently-played`, `/api/track-search`
 - Playback control: `/api/playlists/:id/play`, `/api/track-play`, `/api/player/pause`, `/api/player/resume`, `/api/player/devices`, `/api/player/devices/refresh`, `/api/player/transfer`
-- Waiting list queue: `/api/queue`, `/api/queue/playlist`, `/api/queue/playlist/load`, `/api/queue/playlist/select`, `/api/queue/playlist/add`, `/api/queue/playlist/remove`, `/api/queue/playlist/reorder`, `/api/queue/vote`
+- Waiting list queue: `/api/queue`, `/api/queue/playlist`, `/api/queue/playlist/load`, `/api/queue/playlist/select`, `/api/queue/playlist/add`, `/api/queue/playlist/remove`, `/api/queue/playlist/reorder`, `/api/queue/vote`, `/api/queue/votesort`
 
 ## Caching & Polling
 - Server polls Spotify for playback/queue on a fixed interval and stores results in memory cache.
@@ -78,7 +79,7 @@ open-playlist/
 
 ## Storage
 - `storage/session_store.json`: OAuth tokens + expiry.
-- `storage/queue_store.json`: active playlist id/name, track list (including per-track votes), current index, autoplay state, last error, and device info. Autoplay state is restored from this file on server start; defaults to off if the file is empty or missing.
+- `storage/queue_store.json`: active playlist id/name, track list (including per-track votes), current index, autoplay state, vote-sort state, last error, and device info. Autoplay and vote-sort states are restored from this file on server start; both default to off if the file is empty or missing.
 - Storage paths can be overridden via `SESSION_STORE` and `QUEUE_STORE` environment variables.
 
 ## Configuration

@@ -51,7 +51,8 @@ const sharedQueue = {
   lastAdvanceAt: null,
   lastError: null,
   activeDeviceId: null,
-  activeDeviceName: null
+  activeDeviceName: null,
+  voteSortEnabled: false
 };
 const sharedPlaybackCache = {
   playback: null,
@@ -223,6 +224,9 @@ function readQueueStore() {
     sharedQueue.autoPlayEnabled = typeof data.autoPlayEnabled === "boolean"
       ? data.autoPlayEnabled
       : false;
+    sharedQueue.voteSortEnabled = typeof data.voteSortEnabled === "boolean"
+      ? data.voteSortEnabled
+      : false;
     sharedQueue.lastSeenTrackId = data.lastSeenTrackId || null;
     sharedQueue.lastAdvanceAt = data.lastAdvanceAt || null;
     sharedQueue.lastError = data.lastError || null;
@@ -235,7 +239,8 @@ function readQueueStore() {
     logInfo("Loaded queue store", {
       hasActivePlaylist: Boolean(sharedQueue.activePlaylistId),
       trackCount: sharedQueue.tracks.length,
-      autoPlayEnabled: sharedQueue.autoPlayEnabled
+      autoPlayEnabled: sharedQueue.autoPlayEnabled,
+      voteSortEnabled: sharedQueue.voteSortEnabled
     });
   } catch (err) {
     logWarn("Failed to read queue store", null, err);
@@ -255,6 +260,7 @@ function persistQueueStore() {
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
       autoPlayEnabled: sharedQueue.autoPlayEnabled,
+      voteSortEnabled: sharedQueue.voteSortEnabled,
       lastSeenTrackId: sharedQueue.lastSeenTrackId,
       lastAdvanceAt: sharedQueue.lastAdvanceAt,
       lastError: sharedQueue.lastError,
@@ -1947,6 +1953,7 @@ const server = http.createServer(async (req, res) => {
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
       autoPlayEnabled: sharedQueue.autoPlayEnabled,
+      voteSortEnabled: sharedQueue.voteSortEnabled,
       lastError: sharedQueue.lastError,
       activeDeviceId: sharedQueue.activeDeviceId,
       activeDeviceName: sharedQueue.activeDeviceName
@@ -2046,6 +2053,33 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       ok: true,
       autoPlayEnabled: sharedQueue.autoPlayEnabled
+    });
+  }
+
+  if (pathname === "/api/queue/votesort") {
+    if (!requirePermission(req, res, "queue:votesort")) {
+      return;
+    }
+
+    let body = {};
+    try {
+      body = await readJsonBody(req);
+    } catch (err) {
+      logWarn("Invalid vote-sort payload", null, err);
+      return sendJson(res, 400, { error: "Invalid JSON payload" });
+    }
+
+    const enabled = Boolean(body.enabled);
+    sharedQueue.voteSortEnabled = enabled;
+    sharedQueue.updatedAt = new Date().toISOString();
+    persistQueueStore();
+    notifyPlaybackSubscribers();
+
+    logInfo("Vote sort toggled", { voteSortEnabled: enabled });
+
+    return sendJson(res, 200, {
+      ok: true,
+      voteSortEnabled: sharedQueue.voteSortEnabled
     });
   }
 
@@ -2390,6 +2424,20 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // Resort queue by net votes if vote-sort is enabled
+    let didSort = false;
+    if (sharedQueue.voteSortEnabled && sharedQueue.tracks.length > 2) {
+      const first = sharedQueue.tracks[0];
+      const rest = sharedQueue.tracks.slice(1);
+      rest.sort((a, b) => {
+        const aVotes = a.votes ? (a.votes.up.length - a.votes.down.length) : 0;
+        const bVotes = b.votes ? (b.votes.up.length - b.votes.down.length) : 0;
+        return bVotes - aVotes;
+      });
+      sharedQueue.tracks = [first, ...rest];
+      didSort = true;
+    }
+
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
 
@@ -2401,11 +2449,13 @@ const server = http.createServer(async (req, res) => {
       direction,
       sessionId: session.sessionId,
       upCount: track.votes.up.length,
-      downCount: track.votes.down.length
+      downCount: track.votes.down.length,
+      didSort
     });
 
     return sendJson(res, 200, {
       ok: true,
+      sorted: didSort,
       votes: {
         up: track.votes.up.length,
         down: track.votes.down.length,

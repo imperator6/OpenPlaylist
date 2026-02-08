@@ -15,6 +15,7 @@ const playlistSelect = document.getElementById("playlist-select");
 const playPlaylistBtn = document.getElementById("play-playlist-btn");
 const searchForm = document.getElementById("queue-search-form");
 const autoPlayToggle = document.getElementById("autoplay-toggle");
+const voteSortToggle = document.getElementById("home-votesort-toggle");
 const deviceSelect = document.getElementById("device-select");
 const deviceStatus = document.getElementById("device-status");
 const searchInput = document.getElementById("queue-search-input");
@@ -40,6 +41,7 @@ let isDragging = false;
 let isReordering = false;
 let currentPlaybackId = null;
 let autoPlayEnabled = true;
+let voteSortEnabled = false;
 let lastPlaybackIsPlaying = false;
 let remainingTimerId = null;
 let remainingState = null;
@@ -221,6 +223,35 @@ function closeSearchOverlay() {
 function renderAutoplayState(enabled) {
   if (!autoPlayToggle) return;
   autoPlayToggle.checked = enabled;
+}
+
+function renderVoteSortState(enabled) {
+  if (!voteSortToggle) return;
+  voteSortToggle.checked = enabled;
+}
+
+async function updateVoteSortState(enabled) {
+  try {
+    const response = await fetch("/api/queue/votesort", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Vote sort update failed", response.status, text);
+      return false;
+    }
+
+    const data = await response.json();
+    voteSortEnabled = Boolean(data.voteSortEnabled);
+    renderVoteSortState(voteSortEnabled);
+    return true;
+  } catch (error) {
+    console.error("Vote sort update error", error);
+    return false;
+  }
 }
 
 function setDeviceStatus(message) {
@@ -436,6 +467,7 @@ function createQueueCard(item, label, index, isPlaying, remainingText, nextTrack
   artist.textContent = item.artist;
 
   card.dataset.index = String(index);
+  card.dataset.trackId = item.id || "";
   card.draggable = true;
   card.classList.add("no-action");
   if (item.source === "user") {
@@ -872,9 +904,52 @@ async function removeTrackAt(index) {
   }
 }
 
+function snapshotCardPositions() {
+  const positions = new Map();
+  queueList.querySelectorAll(".queue-card").forEach((card) => {
+    const trackId = card.dataset.trackId;
+    if (trackId) {
+      positions.set(trackId, card.getBoundingClientRect());
+    }
+  });
+  return positions;
+}
+
+function animateQueueReorder(oldPositions) {
+  const cards = queueList.querySelectorAll(".queue-card");
+  cards.forEach((card) => {
+    const trackId = card.dataset.trackId;
+    if (!trackId || !oldPositions.has(trackId)) return;
+    const oldRect = oldPositions.get(trackId);
+    const newRect = card.getBoundingClientRect();
+    const deltaY = oldRect.top - newRect.top;
+    if (Math.abs(deltaY) < 1) return;
+
+    card.style.transform = `translateY(${deltaY}px)`;
+    card.style.transition = "none";
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        card.classList.add("vote-reorder");
+        card.style.transform = "";
+        card.style.transition = "";
+
+        const onEnd = () => {
+          card.classList.remove("vote-reorder");
+          card.removeEventListener("transitionend", onEnd);
+        };
+        card.addEventListener("transitionend", onEnd);
+      });
+    });
+  });
+}
+
 async function submitVote(trackId, direction) {
   if (!trackId) return;
   try {
+    // Snapshot current positions before vote for FLIP animation
+    const oldPositions = voteSortEnabled ? snapshotCardPositions() : null;
+
     const response = await fetch("/api/queue/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -887,8 +962,15 @@ async function submitVote(trackId, direction) {
       return;
     }
 
+    const voteData = await response.json();
+
     // Re-fetch queue to update all vote counts
     await fetchPlaylistTracks();
+
+    // Animate if the queue was re-sorted
+    if (voteData.sorted && oldPositions) {
+      animateQueueReorder(oldPositions);
+    }
   } catch (error) {
     console.error("Vote error", error);
   }
@@ -1025,6 +1107,8 @@ async function fetchPlaylistTracks() {
     playlistTracks = data.tracks || [];
     autoPlayEnabled = Boolean(data.autoPlayEnabled);
     renderAutoplayState(autoPlayEnabled);
+    voteSortEnabled = Boolean(data.voteSortEnabled);
+    renderVoteSortState(voteSortEnabled);
     selectedDeviceId = data.activeDeviceId || null;
     if (data.lastError && data.lastError.message) {
       setQueueError(`Auto-play error: ${data.lastError.message}`);
@@ -1274,6 +1358,13 @@ if (autoPlayToggle) {
   autoPlayToggle.addEventListener("change", async (event) => {
     const target = event.target;
     await updateAutoplayState(Boolean(target.checked));
+  });
+}
+
+if (voteSortToggle) {
+  voteSortToggle.addEventListener("change", async (event) => {
+    const target = event.target;
+    await updateVoteSortState(Boolean(target.checked));
   });
 }
 
