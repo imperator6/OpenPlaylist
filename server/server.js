@@ -2424,22 +2424,17 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // Resort upcoming window by net votes if vote-sort is enabled
-    const VOTE_SORT_WINDOW = 10;
+    // Resort queue by net votes if vote-sort is enabled
     let didSort = false;
     if (sharedQueue.voteSortEnabled && sharedQueue.tracks.length > 2) {
-      const windowEnd = Math.min(1 + VOTE_SORT_WINDOW, sharedQueue.tracks.length);
-      const window = sharedQueue.tracks.slice(1, windowEnd);
-      window.sort((a, b) => {
+      const first = sharedQueue.tracks[0];
+      const rest = sharedQueue.tracks.slice(1);
+      rest.sort((a, b) => {
         const aVotes = a.votes ? (a.votes.up.length - a.votes.down.length) : 0;
         const bVotes = b.votes ? (b.votes.up.length - b.votes.down.length) : 0;
         return bVotes - aVotes;
       });
-      sharedQueue.tracks = [
-        sharedQueue.tracks[0],
-        ...window,
-        ...sharedQueue.tracks.slice(windowEnd)
-      ];
+      sharedQueue.tracks = [first, ...rest];
       didSort = true;
     }
 
