@@ -4,7 +4,8 @@
       "Bash(dir:*)",
       "Bash([ -f .env ])",
       "Bash(timeout 5 npm start:*)",
-      "Bash(node --version:*)"
+      "Bash(node --version:*)",
+      "Bash(node -c:*)"
     ]
   }
 }

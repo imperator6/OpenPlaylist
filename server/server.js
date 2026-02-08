@@ -208,6 +208,10 @@ function readQueueStore() {
             normalized.addedTimestamp = data.updatedAt || new Date().toISOString();
             didNormalize = true;
           }
+          if (!normalized.votes) {
+            normalized.votes = { up: [], down: [] };
+            didNormalize = true;
+          }
           return normalized;
         })
       : [];
@@ -465,6 +469,26 @@ function scheduleAutoRefresh() {
 }
 
 scheduleAutoRefresh();
+
+function enrichVoteNames(votes) {
+  if (!votes) return { up: [], down: [] };
+  const enrich = (arr) =>
+    (arr || []).map((v) => {
+      const stored = auth.getSession(v.sessionId);
+      return {
+        sessionId: v.sessionId,
+        name: (stored && stored.name) || v.name || ""
+      };
+    });
+  return { up: enrich(votes.up), down: enrich(votes.down) };
+}
+
+function enrichedTracks() {
+  return sharedQueue.tracks.map((track) => ({
+    ...track,
+    votes: enrichVoteNames(track.votes)
+  }));
+}
 
 function getServerTrack(index) {
   if (!Array.isArray(sharedQueue.tracks)) return null;
@@ -1113,6 +1137,18 @@ const server = http.createServer(async (req, res) => {
     if (!updatedSession) {
       return sendJson(res, 500, { error: "Failed to update session" });
     }
+
+    // Retroactively update voter name on all existing votes
+    for (const track of sharedQueue.tracks) {
+      for (const dir of ["up", "down"]) {
+        for (const vote of (track.votes && track.votes[dir]) || []) {
+          if (vote.sessionId === updatedSession.sessionId) {
+            vote.name = name;
+          }
+        }
+      }
+    }
+    persistQueueStore();
 
     res.setHeader("Set-Cookie", auth.createSessionCookie(updatedSession));
     logInfo("Guest name updated", {
@@ -1905,7 +1941,7 @@ const server = http.createServer(async (req, res) => {
       playlistOwner: sharedQueue.activePlaylistOwner,
       playlistTrackCount: sharedQueue.activePlaylistTrackCount,
       playlistDescription: sharedQueue.activePlaylistDescription,
-      tracks: sharedQueue.tracks,
+      tracks: enrichedTracks(),
       updatedAt: sharedQueue.updatedAt,
       currentIndex: sharedQueue.currentIndex,
       autoPlayEnabled: sharedQueue.autoPlayEnabled,
@@ -2167,7 +2203,8 @@ const server = http.createServer(async (req, res) => {
         album: track.album ? track.album.name : "",
         duration_ms: track.duration_ms || null,
         source: "playlist",
-        addedTimestamp: addedAt
+        addedTimestamp: addedAt,
+        votes: { up: [], down: [] }
       }));
 
     sharedQueue.activePlaylistId = playlistId;
@@ -2248,7 +2285,8 @@ const server = http.createServer(async (req, res) => {
         sessionId: session.sessionId,
         name: session.name,
         role: session.role
-      }
+      },
+      votes: { up: [], down: [] }
     };
 
     if (position === null || position >= sharedQueue.tracks.length) {
@@ -2275,6 +2313,78 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       ok: true,
       tracks: sharedQueue.tracks
+    });
+  }
+
+  if (pathname === "/api/queue/vote") {
+    if (!requirePermission(req, res, "queue:vote")) {
+      return;
+    }
+
+    let body = {};
+    try {
+      body = await readJsonBody(req);
+    } catch (err) {
+      logWarn("Invalid vote payload", null, err);
+      return sendJson(res, 400, { error: "Invalid JSON payload" });
+    }
+
+    const trackId = body.trackId || "";
+    const direction = body.direction;
+    if (!trackId || (direction !== "up" && direction !== "down")) {
+      return sendJson(res, 400, { error: "Missing trackId or invalid direction (up/down)" });
+    }
+
+    const track = sharedQueue.tracks.find((t) => t.id === trackId);
+    if (!track) {
+      return sendJson(res, 404, { error: "Track not found in queue" });
+    }
+
+    if (!track.votes) {
+      track.votes = { up: [], down: [] };
+    }
+
+    const session = getUserSession(req);
+    const isAdmin = session.role === "admin";
+    const voter = { sessionId: session.sessionId, name: session.name || "" };
+
+    if (isAdmin) {
+      track.votes[direction].push(voter);
+    } else {
+      const prevUp = track.votes.up.findIndex((v) => v.sessionId === session.sessionId);
+      const prevDown = track.votes.down.findIndex((v) => v.sessionId === session.sessionId);
+      const wasSameDirection =
+        (direction === "up" && prevUp >= 0) || (direction === "down" && prevDown >= 0);
+
+      if (prevUp >= 0) track.votes.up.splice(prevUp, 1);
+      if (prevDown >= 0) track.votes.down.splice(prevDown, 1);
+
+      if (!wasSameDirection) {
+        track.votes[direction].push(voter);
+      }
+    }
+
+    sharedQueue.updatedAt = new Date().toISOString();
+    persistQueueStore();
+
+    const userVoteUp = track.votes.up.some((v) => v.sessionId === session.sessionId);
+    const userVoteDown = track.votes.down.some((v) => v.sessionId === session.sessionId);
+
+    logDebug("Vote recorded", {
+      trackId,
+      direction,
+      sessionId: session.sessionId,
+      upCount: track.votes.up.length,
+      downCount: track.votes.down.length
+    });
+
+    return sendJson(res, 200, {
+      ok: true,
+      votes: {
+        up: track.votes.up.length,
+        down: track.votes.down.length,
+        userVote: userVoteUp ? "up" : userVoteDown ? "down" : null
+      }
     });
   }
 

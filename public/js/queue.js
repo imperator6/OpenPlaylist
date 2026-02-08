@@ -409,7 +409,8 @@ function parseTrack(track) {
     source: track.source || null,
     duration_ms: track.duration_ms || null,
     addedTimestamp: track.addedTimestamp || null,
-    addedBy: track.addedBy || null
+    addedBy: track.addedBy || null,
+    votes: track.votes || { up: [], down: [] }
   };
 }
 
@@ -445,6 +446,47 @@ function createQueueCard(item, label, index, isPlaying, remainingText) {
     if (userTime && item.addedTimestamp) {
       const relativeTime = formatRelativeTime(item.addedTimestamp);
       userTime.textContent = relativeTime ? ` · ${relativeTime}` : "";
+    }
+  }
+
+  // Vote badges
+  const voteBadges = node.querySelector(".queue-vote-badges");
+  const voteUpBtn = node.querySelector(".vote-up");
+  const voteDownBtn = node.querySelector(".vote-down");
+  const voteUpCount = voteUpBtn ? voteUpBtn.querySelector(".vote-count") : null;
+  const voteDownCount = voteDownBtn ? voteDownBtn.querySelector(".vote-count") : null;
+  const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
+  const currentSessionId = currentUser ? currentUser.sessionId : null;
+
+  if (voteBadges && item.votes) {
+    const upVotes = item.votes.up || [];
+    const downVotes = item.votes.down || [];
+    if (voteUpCount) voteUpCount.textContent = String(upVotes.length);
+    if (voteDownCount) voteDownCount.textContent = String(downVotes.length);
+
+    if (currentSessionId) {
+      if (upVotes.some((v) => v.sessionId === currentSessionId)) {
+        voteUpBtn.classList.add("voted");
+      }
+      if (downVotes.some((v) => v.sessionId === currentSessionId)) {
+        voteDownBtn.classList.add("voted");
+      }
+    }
+
+    const upNames = upVotes.map((v) => v.name || "Guest").join(", ");
+    const downNames = downVotes.map((v) => v.name || "Guest").join(", ");
+    if (voteUpBtn && upNames) voteUpBtn.title = upNames;
+    if (voteDownBtn && downNames) voteDownBtn.title = downNames;
+
+    if (voteUpBtn) {
+      voteUpBtn.addEventListener("click", () => {
+        submitVote(item.id, "up");
+      });
+    }
+    if (voteDownBtn) {
+      voteDownBtn.addEventListener("click", () => {
+        submitVote(item.id, "down");
+      });
     }
   }
 
@@ -819,6 +861,28 @@ async function removeTrackAt(index) {
   } catch (error) {
     console.error("Remove track error", error);
     setQueueStatus("Unable to remove track.");
+  }
+}
+
+async function submitVote(trackId, direction) {
+  if (!trackId) return;
+  try {
+    const response = await fetch("/api/queue/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trackId, direction })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Vote failed", response.status, text);
+      return;
+    }
+
+    // Re-fetch queue to update all vote counts
+    await fetchPlaylistTracks();
+  } catch (error) {
+    console.error("Vote error", error);
   }
 }
 
