@@ -139,3 +139,8 @@ If a task conflicts with these rules, ask me.
 
 
 
+## PWA REQUIREMENTS
+- PWA-enabled apps MUST include a valid `manifest.webmanifest` with app name, icons, `start_url`, `scope`, and display mode.
+- Register a service worker for core static assets; do not cache `/api/*` responses unless explicitly required.
+- Include install metadata on all entry HTML pages (`manifest`, `theme-color`, and Apple touch/meta tags).
+- PWA features must degrade gracefully when service workers or install prompts are unsupported.

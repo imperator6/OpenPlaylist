@@ -340,6 +340,10 @@ function readStaticFile(filePath, res) {
       ? "text/css"
       : ext === ".js"
       ? "text/javascript"
+      : ext === ".webmanifest"
+      ? "application/manifest+json"
+      : ext === ".png"
+      ? "image/png"
       : "text/html";
 
   fs.readFile(filePath, (err, data) => {
@@ -974,6 +978,24 @@ const server = http.createServer(async (req, res) => {
   }
   if (pathname === "/js/menu.js") {
     return readStaticFile(path.join(__dirname, "..", "public", "js", "menu.js"), res);
+  }
+  if (pathname === "/js/pwa.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "pwa.js"), res);
+  }
+  if (pathname === "/sw.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "sw.js"), res);
+  }
+  if (pathname === "/manifest.webmanifest") {
+    return readStaticFile(path.join(__dirname, "..", "public", "manifest.webmanifest"), res);
+  }
+  if (pathname === "/icons/icon-192.png") {
+    return readStaticFile(path.join(__dirname, "..", "public", "icons", "icon-192.png"), res);
+  }
+  if (pathname === "/icons/icon-512.png") {
+    return readStaticFile(path.join(__dirname, "..", "public", "icons", "icon-512.png"), res);
+  }
+  if (pathname === "/icons/apple-touch-icon.png") {
+    return readStaticFile(path.join(__dirname, "..", "public", "icons", "apple-touch-icon.png"), res);
   }
 
   if (pathname === "/status") {

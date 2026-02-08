@@ -87,3 +87,10 @@ open-playlist/
 ## Security Notes
 - Spotify access tokens, refresh tokens, and client secrets are never sent to the browser.
 - All Spotify API traffic stays on the server.
+
+## PWA Support
+- The app now includes a Web App Manifest at `/manifest.webmanifest` with `display: "fullscreen"` for installable fullscreen launch behavior.
+- All HTML pages include PWA metadata (`manifest`, `theme-color`, Apple standalone tags, and apple-touch icon).
+- A shared client script (`/js/pwa.js`) registers a service worker.
+- A service worker (`/sw.js`) caches core app shell assets and keeps `/api/*` requests network-only.
+- PWA icons are served from `/icons/icon-192.png`, `/icons/icon-512.png`, and `/icons/apple-touch-icon.png`.
