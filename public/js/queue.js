@@ -348,8 +348,45 @@ function openSearchOverlay(trigger) {
   }
   setPlacementMessage(`Inserting: ${pendingInsertLabel}`);
   if (searchInput) {
-    requestAnimationFrame(() => {
+    try {
+      searchInput.focus({ preventScroll: true });
+    } catch (err) {
       searchInput.focus();
+    }
+    if (typeof searchInput.click === "function") {
+      searchInput.click();
+    }
+    if (typeof searchInput.setSelectionRange === "function") {
+      const length = searchInput.value.length;
+      searchInput.setSelectionRange(length, length);
+    } else if (typeof searchInput.select === "function") {
+      searchInput.select();
+    }
+    requestAnimationFrame(() => {
+      try {
+        searchInput.focus({ preventScroll: true });
+      } catch (err) {
+        searchInput.focus();
+      }
+      if (typeof searchInput.click === "function") {
+        searchInput.click();
+      }
+      if (typeof searchInput.setSelectionRange === "function") {
+        const length = searchInput.value.length;
+        searchInput.setSelectionRange(length, length);
+      } else if (typeof searchInput.select === "function") {
+        searchInput.select();
+      }
+      setTimeout(() => {
+        try {
+          searchInput.focus({ preventScroll: true });
+        } catch (err) {
+          searchInput.focus();
+        }
+        if (typeof searchInput.click === "function") {
+          searchInput.click();
+        }
+      }, 120);
     });
   }
 }

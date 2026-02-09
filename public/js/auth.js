@@ -160,6 +160,48 @@ function hasPermission(permission) {
   return currentUser.permissions.includes(permission);
 }
 
+function focusModalInput(input) {
+  if (!input) return;
+  const applyFocus = () => {
+    try {
+      input.focus({ preventScroll: true });
+    } catch (err) {
+      input.focus();
+    }
+    if (typeof input.click === "function") {
+      input.click();
+    }
+    if (typeof input.setSelectionRange === "function") {
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+    } else if (typeof input.select === "function") {
+      input.select();
+    }
+  };
+  requestAnimationFrame(() => {
+    applyFocus();
+    setTimeout(applyFocus, 120);
+  });
+}
+
+function focusInputImmediate(input) {
+  if (!input) return;
+  try {
+    input.focus({ preventScroll: true });
+  } catch (err) {
+    input.focus();
+  }
+  if (typeof input.click === "function") {
+    input.click();
+  }
+  if (typeof input.setSelectionRange === "function") {
+    const length = input.value.length;
+    input.setSelectionRange(length, length);
+  } else if (typeof input.select === "function") {
+    input.select();
+  }
+}
+
 /**
  * Open admin login modal
  */
@@ -174,9 +216,7 @@ function openAdminLogin() {
   document.body.classList.add("modal-open");
   if (adminPasswordInput) {
     adminPasswordInput.value = "";
-    setTimeout(() => {
-      adminPasswordInput.focus();
-    }, 100);
+    focusModalInput(adminPasswordInput);
   }
   if (adminLoginError) {
     adminLoginError.textContent = "";
@@ -265,9 +305,7 @@ function openDjLogin() {
   document.body.classList.add("modal-open");
   if (djPasswordInput) {
     djPasswordInput.value = "";
-    setTimeout(() => {
-      djPasswordInput.focus();
-    }, 100);
+    focusModalInput(djPasswordInput);
   }
   if (djLoginError) {
     djLoginError.textContent = "";
@@ -359,9 +397,7 @@ function openNamePrompt() {
 
     if (nameInput) {
       nameInput.value = currentUser.name || "";
-      setTimeout(() => {
-        nameInput.focus();
-      }, 100);
+      focusModalInput(nameInput);
     }
 
     if (nameError) {
@@ -562,6 +598,7 @@ if (adminMenuLink) {
     console.log("Admin menu link clicked!");
     event.preventDefault();
     openAdminLogin();
+    focusInputImmediate(adminPasswordInput);
   });
 } else {
   console.error("adminMenuLink element not found!");
@@ -571,6 +608,7 @@ if (djMenuLink) {
   djMenuLink.addEventListener("click", (event) => {
     event.preventDefault();
     openDjLogin();
+    focusInputImmediate(djPasswordInput);
   });
 }
 
@@ -585,6 +623,7 @@ if (userNameText) {
   userNameText.addEventListener("click", async () => {
     if (currentUser.role === "guest") {
       await openNamePrompt();
+      focusInputImmediate(nameInput);
     }
   });
   userNameText.style.cursor = "pointer";
