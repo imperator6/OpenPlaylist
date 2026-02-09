@@ -49,6 +49,8 @@ All instructions below must be followed unless explicitly overridden.
 - Use a single long-poll endpoint for all real-time client updates.
 - Client pages MUST use `/api/stream/all` instead of multiple parallel long polls.
 - Do not introduce new per-feature long polls; extend the unified payload instead.
+- Only one long-poll connection is allowed across the entire app, even with multiple tabs.
+- Implement a shared-tab strategy (BroadcastChannel + single leader tab) so only one tab keeps the long poll open while others receive updates via messaging.
 
 ## SPOTIFY API (SERVER-ONLY)
 - All calls to the Spotify Web API MUST be done on the server (never in browser JS).

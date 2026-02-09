@@ -32,7 +32,7 @@ const homeClearQueueBtn = document.getElementById("home-clear-queue-btn");
 let homeSelectedDeviceId = null;
 let homeProgressTimer = null;
 let homeProgressState = null;
-let homeUnifiedSince = null;
+let homeUnifiedSubscribed = false;
 let homeQueueCount = null;
 let homeIsSeeking = false;
 
@@ -276,48 +276,33 @@ function applyHomePlaybackPayload(data) {
   }
 }
 
-async function startHomeUnifiedLongPoll() {
-  if (!homePlaybackStatus && !homeDeviceList) return;
-  try {
-    const query = homeUnifiedSince ? `?since=${encodeURIComponent(homeUnifiedSince)}` : "";
-    const response = await fetch(`/api/stream/all${query}`);
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("Home unified stream failed", response.status, text);
-      setHomePlaybackStatus("Disconnected", false);
-      setHomePlaybackHint("Connect Spotify on the Session page to load playback.");
-      setHomeDeviceStatus("Unable to load devices.");
-      setTimeout(startHomeUnifiedLongPoll, 2000);
-      return;
-    }
-
-    const data = await response.json();
-    homeUnifiedSince = data.updatedAt || new Date().toISOString();
+function startHomeUnifiedLongPoll() {
+  if (homeUnifiedSubscribed || !window.streamLeader) return;
+  homeUnifiedSubscribed = true;
+  window.streamLeader.subscribe((data) => {
+    if (!data) return;
     if (data.authOk === false) {
       setHomeSessionError("No active session. Connect Spotify on the Session page.");
       setHomePlaybackStatus("Disconnected", false);
       setHomePlaybackHint("No active session. Connect Spotify on the Session page.");
       setHomeDeviceStatus("No active session. Connect Spotify on the Session page.");
-    } else {
-      setHomeSessionError("");
-      if (data.playback) {
-        applyHomePlaybackPayload(data.playback);
-      }
-      if (data.devices) {
-        const devices = Array.isArray(data.devices.devices) ? data.devices.devices : [];
-        const active = devices.find((device) => device.is_active);
-        const preferred = data.devices.preferredDeviceId || (active ? active.id : null);
-        if (preferred && homeSelectedDeviceId !== preferred) {
-          homeSelectedDeviceId = preferred;
-        }
-        renderHomeDevices(devices, preferred);
-      }
+      return;
     }
-    startHomeUnifiedLongPoll();
-  } catch (error) {
-    console.error("Home unified stream error", error);
-    setTimeout(startHomeUnifiedLongPoll, 2000);
-  }
+    setHomeSessionError("");
+    if (data.playback) {
+      applyHomePlaybackPayload(data.playback);
+    }
+    if (data.devices) {
+      const devices = Array.isArray(data.devices.devices) ? data.devices.devices : [];
+      const active = devices.find((device) => device.is_active);
+      const preferred = data.devices.preferredDeviceId || (active ? active.id : null);
+      if (preferred && homeSelectedDeviceId !== preferred) {
+        homeSelectedDeviceId = preferred;
+      }
+      renderHomeDevices(devices, preferred);
+    }
+  });
+  window.streamLeader.start();
 }
 
 function renderHomeDevices(devices, preferredId) {

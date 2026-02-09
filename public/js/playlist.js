@@ -531,7 +531,7 @@ fetchActivePlaylistCard();
 
 const queueStatusCard = document.getElementById("home-queue-status");
 const clearQueueBtn = document.getElementById("home-clear-queue-btn");
-let queueUnifiedSince = null;
+let queueUnifiedSubscribed = false;
 
 function setQueueStatus(count) {
   if (!queueStatusCard) return;
@@ -547,26 +547,17 @@ function setQueueStatus(count) {
   if (clearQueueBtn && canClear) clearQueueBtn.style.display = "inline-flex";
 }
 
-async function startQueuePoll() {
-  if (!queueStatusCard) return;
-  try {
-    const query = queueUnifiedSince ? `?since=${encodeURIComponent(queueUnifiedSince)}` : "";
-    const response = await fetch(`/api/stream/all${query}`);
-    if (!response.ok) {
-      setTimeout(startQueuePoll, 3000);
-      return;
-    }
-    const data = await response.json();
-    queueUnifiedSince = data.updatedAt || new Date().toISOString();
-    const queueCount = data.playback ? data.playback.queueCount : null;
+function startQueuePoll() {
+  if (queueUnifiedSubscribed || !window.streamLeader) return;
+  queueUnifiedSubscribed = true;
+  window.streamLeader.subscribe((data) => {
+    if (!data || !data.playback) return;
+    const queueCount = data.playback.queueCount;
     if (typeof queueCount === "number") {
       setQueueStatus(queueCount);
     }
-    startQueuePoll();
-  } catch (error) {
-    console.error("Queue stream error", error);
-    setTimeout(startQueuePoll, 3000);
-  }
+  });
+  window.streamLeader.start();
 }
 
 if (clearQueueBtn) {

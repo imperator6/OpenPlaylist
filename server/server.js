@@ -1066,6 +1066,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/js/menu.js") {
     return readStaticFile(path.join(__dirname, "..", "public", "js", "menu.js"), res);
   }
+  if (pathname === "/js/stream-leader.js") {
+    return readStaticFile(path.join(__dirname, "..", "public", "js", "stream-leader.js"), res);
+  }
   if (pathname === "/js/pwa.js") {
     return readStaticFile(path.join(__dirname, "..", "public", "js", "pwa.js"), res);
   }

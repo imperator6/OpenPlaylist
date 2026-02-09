@@ -48,7 +48,7 @@ let remainingTimerId = null;
 let remainingState = null;
 let lastRemainingText = "";
 let selectedDeviceId = null;
-let unifiedSince = null;
+let unifiedSubscriptionActive = false;
 let lastOverlayTrigger = null;
 let pendingInsertIndex = null;
 let pendingInsertLabel = "";
@@ -1108,25 +1108,14 @@ async function submitVote(trackId, direction) {
   }
 }
 
-async function startUnifiedLongPoll() {
-  try {
-    const query = unifiedSince ? `?since=${encodeURIComponent(unifiedSince)}` : "";
-    const response = await fetch(`/api/stream/all${query}`);
-    if (!response.ok) {
-      const text = await response.text();
-      console.error("Unified stream failed", response.status, text);
-      setTimeout(startUnifiedLongPoll, 2000);
-      return;
-    }
-
-    const data = await response.json();
-    unifiedSince = data.updatedAt || new Date().toISOString();
+function startUnifiedLongPoll() {
+  if (unifiedSubscriptionActive || !window.streamLeader) return;
+  unifiedSubscriptionActive = true;
+  window.streamLeader.subscribe((data) => {
+    if (!data) return;
     applyUnifiedQueuePayload(data);
-    startUnifiedLongPoll();
-  } catch (error) {
-    console.error("Unified stream error", error);
-    setTimeout(startUnifiedLongPoll, 2000);
-  }
+  });
+  window.streamLeader.start();
 }
 
 async function fetchPlaylists() {

@@ -71,7 +71,8 @@ open-playlist/
 - Clients poll the server for cached data where needed; they do not poll Spotify directly.
 - Server updates playback cache immediately on play/pause actions so status propagates to all clients on their next poll.
 - Home play/pause button updates optimistically before the next poll, then syncs with the server result.
-- Playback, device, and queue updates are delivered via a single long-polling endpoint (`/api/stream/all`) so clients receive server-side changes without parallel long polls.
+- Playback, device, and queue updates are delivered via a single long-polling endpoint (`/api/stream/all`).
+- A leader-tab strategy (BroadcastChannel + shared lease) ensures only one browser tab keeps the long poll open; other tabs receive updates via cross-tab messaging.
 - Autoplay state changes are broadcast in the unified stream so all clients stay in sync.
 - Clients rely on the unified stream for the initial playback/device state instead of separate one-time fetches, including autoplay on home.
 - Queue and Home no longer use separate playback/device/playlist streams; the unified stream is the only long-poll source for those updates.
