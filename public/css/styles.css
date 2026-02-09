@@ -1847,7 +1847,8 @@ body.menu-open {
 }
 
 .recent-card {
-  grid-template-columns: 1.25rem 4rem 1fr auto auto;
+  grid-template-columns: 4rem 1fr auto auto;
+  gap: 0.75rem;
 }
 
 .recent-actions {
@@ -1881,7 +1882,7 @@ body.menu-open {
   flex-direction: column;
 }
 
-.queue-actions.recent-actions {
+.recent-card .queue-actions {
   display: flex;
   flex-direction: row;
 }
