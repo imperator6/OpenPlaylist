@@ -67,6 +67,7 @@ const sharedDevicesCache = {
   preferredDeviceId: null
 };
 const deviceSubscribers = [];
+const queueSubscribers = [];
 const SERVICE_NAME = "spotify-server";
 
 function writeLog(line, isError) {
@@ -662,6 +663,32 @@ function notifyDeviceSubscribers() {
   };
 
   const subscribers = deviceSubscribers.splice(0, deviceSubscribers.length);
+  subscribers.forEach(({ res, timeoutId }) => {
+    clearTimeout(timeoutId);
+    sendJson(res, 200, payload);
+  });
+}
+
+function notifyQueueSubscribers() {
+  if (!queueSubscribers.length) return;
+  const payload = {
+    playlistId: sharedQueue.activePlaylistId,
+    playlistName: sharedQueue.activePlaylistName,
+    playlistImage: sharedQueue.activePlaylistImage,
+    playlistOwner: sharedQueue.activePlaylistOwner,
+    playlistTrackCount: sharedQueue.activePlaylistTrackCount,
+    playlistDescription: sharedQueue.activePlaylistDescription,
+    tracks: enrichedTracks(),
+    updatedAt: sharedQueue.updatedAt,
+    currentIndex: sharedQueue.currentIndex,
+    autoPlayEnabled: sharedQueue.autoPlayEnabled,
+    voteSortEnabled: sharedQueue.voteSortEnabled,
+    lastError: sharedQueue.lastError,
+    activeDeviceId: sharedQueue.activeDeviceId,
+    activeDeviceName: sharedQueue.activeDeviceName
+  };
+
+  const subscribers = queueSubscribers.splice(0, queueSubscribers.length);
   subscribers.forEach(({ res, timeoutId }) => {
     clearTimeout(timeoutId);
     sendJson(res, 200, payload);
@@ -1960,6 +1987,66 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (pathname === "/api/queue/playlist/stream") {
+    // No Spotify token required; playlist data is server-side state.
+    const since = url.searchParams.get("since");
+    const sinceMs = since ? Date.parse(since) : null;
+    if (
+      sharedQueue.updatedAt &&
+      (!sinceMs || Date.parse(sharedQueue.updatedAt) > sinceMs)
+    ) {
+      return sendJson(res, 200, {
+        playlistId: sharedQueue.activePlaylistId,
+        playlistName: sharedQueue.activePlaylistName,
+        playlistImage: sharedQueue.activePlaylistImage,
+        playlistOwner: sharedQueue.activePlaylistOwner,
+        playlistTrackCount: sharedQueue.activePlaylistTrackCount,
+        playlistDescription: sharedQueue.activePlaylistDescription,
+        tracks: enrichedTracks(),
+        updatedAt: sharedQueue.updatedAt,
+        currentIndex: sharedQueue.currentIndex,
+        autoPlayEnabled: sharedQueue.autoPlayEnabled,
+        voteSortEnabled: sharedQueue.voteSortEnabled,
+        lastError: sharedQueue.lastError,
+        activeDeviceId: sharedQueue.activeDeviceId,
+        activeDeviceName: sharedQueue.activeDeviceName
+      });
+    }
+
+    const timeoutId = setTimeout(() => {
+      const index = queueSubscribers.findIndex((item) => item.res === res);
+      if (index >= 0) {
+        queueSubscribers.splice(index, 1);
+      }
+      sendJson(res, 200, {
+        playlistId: sharedQueue.activePlaylistId,
+        playlistName: sharedQueue.activePlaylistName,
+        playlistImage: sharedQueue.activePlaylistImage,
+        playlistOwner: sharedQueue.activePlaylistOwner,
+        playlistTrackCount: sharedQueue.activePlaylistTrackCount,
+        playlistDescription: sharedQueue.activePlaylistDescription,
+        tracks: enrichedTracks(),
+        updatedAt: sharedQueue.updatedAt,
+        currentIndex: sharedQueue.currentIndex,
+        autoPlayEnabled: sharedQueue.autoPlayEnabled,
+        voteSortEnabled: sharedQueue.voteSortEnabled,
+        lastError: sharedQueue.lastError,
+        activeDeviceId: sharedQueue.activeDeviceId,
+        activeDeviceName: sharedQueue.activeDeviceName
+      });
+    }, 30000);
+
+    queueSubscribers.push({ res, timeoutId });
+    res.on("close", () => {
+      const index = queueSubscribers.findIndex((item) => item.res === res);
+      if (index >= 0) {
+        clearTimeout(queueSubscribers[index].timeoutId);
+        queueSubscribers.splice(index, 1);
+      }
+    });
+    return;
+  }
+
   if (pathname === "/api/queue/autoplay") {
     if (!requirePermission(req, res, "queue:autoplay")) {
       return;
@@ -1978,6 +2065,7 @@ const server = http.createServer(async (req, res) => {
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
     notifyPlaybackSubscribers();
+    notifyQueueSubscribers();
 
     if (enabled) {
       try {
@@ -2074,6 +2162,7 @@ const server = http.createServer(async (req, res) => {
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
     notifyPlaybackSubscribers();
+    notifyQueueSubscribers();
 
     logInfo("Vote sort toggled", { voteSortEnabled: enabled });
 
@@ -2122,6 +2211,7 @@ const server = http.createServer(async (req, res) => {
       sharedQueue.currentIndex = 0;
     }
     persistQueueStore();
+    notifyQueueSubscribers();
 
     return sendJson(res, 200, {
       ok: true,
@@ -2287,6 +2377,7 @@ const server = http.createServer(async (req, res) => {
     sharedQueue.lastSeenTrackId = currentTrack ? (currentTrack.id || null) : null;
     sharedQueue.lastAdvanceAt = currentTrack ? Date.now() : null;
     persistQueueStore();
+    notifyQueueSubscribers();
 
     return sendJson(res, 200, {
       ok: true,
@@ -2374,6 +2465,8 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       tracks: sharedQueue.tracks
     });
+    // Note: notifyQueueSubscribers after sending response not needed here,
+    // but for long-poll subscribers we notify before returning.
   }
 
   if (pathname === "/api/queue/vote") {
@@ -2451,6 +2544,7 @@ const server = http.createServer(async (req, res) => {
 
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
+    notifyQueueSubscribers();
 
     const userVoteUp = track.votes.up.some((v) => v.sessionId === session.sessionId);
     const userVoteDown = track.votes.down.some((v) => v.sessionId === session.sessionId);
@@ -2487,6 +2581,7 @@ const server = http.createServer(async (req, res) => {
     sharedQueue.lastAdvanceAt = null;
     persistQueueStore();
     notifyPlaybackSubscribers();
+    notifyQueueSubscribers();
 
     const session = getUserSession(req);
     logInfo("Queue cleared", {
@@ -2549,6 +2644,7 @@ const server = http.createServer(async (req, res) => {
     }
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
+    notifyQueueSubscribers();
 
     logInfo("Track removed from queue", {
       trackId: removed.id,
@@ -2601,6 +2697,7 @@ const server = http.createServer(async (req, res) => {
     }
     sharedQueue.updatedAt = new Date().toISOString();
     persistQueueStore();
+    notifyQueueSubscribers();
 
     return sendJson(res, 200, {
       ok: true,

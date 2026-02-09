@@ -49,6 +49,7 @@ let lastRemainingText = "";
 let selectedDeviceId = null;
 let playbackSince = null;
 let devicesSince = null;
+let playlistSince = null;
 let lastOverlayTrigger = null;
 let pendingInsertIndex = null;
 let pendingInsertLabel = "";
@@ -1127,6 +1128,69 @@ async function fetchPlaylistTracks() {
   }
 }
 
+function applyPlaylistPayload(data) {
+  if (!data) return;
+  // Snapshot positions for FLIP animation before we update list
+  const oldPositions = voteSortEnabled ? snapshotCardPositions() : null;
+  currentPlaylistId = data.playlistId || null;
+  renderActivePlaylistSummary({
+    name: data.playlistName || "",
+    image: data.playlistImage || "",
+    owner: data.playlistOwner || "",
+    trackCount: data.playlistTrackCount != null ? data.playlistTrackCount : null,
+    description: data.playlistDescription || ""
+  });
+  playlistTracks = data.tracks || [];
+  autoPlayEnabled = Boolean(data.autoPlayEnabled);
+  renderAutoplayState(autoPlayEnabled);
+  voteSortEnabled = Boolean(data.voteSortEnabled);
+  renderVoteSortState(voteSortEnabled);
+  selectedDeviceId = data.activeDeviceId || null;
+  if (data.lastError && data.lastError.message) {
+    setQueueError(`Auto-play error: ${data.lastError.message}`);
+  } else {
+    setQueueError("");
+  }
+  if (!isDragging && !isReordering) {
+    renderPlaylist(playlistTracks);
+    // Animate if vote sort moved cards (other clients too)
+    if (voteSortEnabled && oldPositions) {
+      animateQueueReorder(oldPositions);
+    }
+  }
+  if (!currentPlaylistId) {
+    setQueueStatus("Select and load a playlist on the Playlist page.");
+    return;
+  }
+  setQueueStatus("Drag tracks to reorder. Changes sync to all sessions.");
+}
+
+async function startPlaylistLongPoll() {
+  try {
+    const query = playlistSince ? `?since=${encodeURIComponent(playlistSince)}` : "";
+    const response = await fetch(`/api/queue/playlist/stream${query}`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        setQueueError("No active session. Connect Spotify on the Session page.");
+        setTimeout(startPlaylistLongPoll, 1000);
+        return;
+      }
+      const text = await response.text();
+      console.error("Playlist stream failed", response.status, text);
+      setTimeout(startPlaylistLongPoll, 1000);
+      return;
+    }
+
+    const data = await response.json();
+    playlistSince = data.updatedAt || new Date().toISOString();
+    applyPlaylistPayload(data);
+    startPlaylistLongPoll();
+  } catch (error) {
+    console.error("Playlist stream error", error);
+    setTimeout(startPlaylistLongPoll, 1000);
+  }
+}
+
 async function searchTracks(query, offset = 0) {
   if (!query.trim()) return;
   try {
@@ -1475,14 +1539,7 @@ async function initializeQueue() {
   startPlaybackLongPoll();
   fetchPlaylists();
   startDevicesLongPoll();
-  setInterval(() => {
-    // Device updates are now long-polled.
-  }, 15000);
-  setInterval(async () => {
-    if (!isDragging && !isReordering) {
-      await fetchPlaylistTracks();
-    }
-  }, REFRESH_INTERVAL_MS);
+  startPlaylistLongPoll();
 }
 
 initializeQueue();

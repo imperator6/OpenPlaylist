@@ -8,7 +8,7 @@ All instructions below must be followed unless explicitly overridden.
 - Write clean, readable, maintainable code.
 - Prefer clarity over cleverness.
 - Follow modern best practices.
-- Avoid unnecessary complexity or dependencies.
+- Avoid unnecessary complexity or dependencies. 
 
 ## FRONTEND & UI RULES
 - All web pages MUST be mobile-first and responsive.
