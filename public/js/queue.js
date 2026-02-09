@@ -62,11 +62,63 @@ let currentSearchTracks = [];
 let hasMoreSearchResults = false;
 let lastActivityId = null;
 
-function showToast(message) {
+function showToast(message, iconType = null, imageUrl = null) {
   if (!toastStack || !message) return;
   const toast = document.createElement("div");
   toast.className = "toast";
-  toast.textContent = message;
+  
+  // Create icon element
+  if (iconType || imageUrl) {
+    const iconEl = document.createElement("span");
+    iconEl.className = "toast-icon";
+    
+    if (imageUrl) {
+      // Use track cover image
+      const img = document.createElement("img");
+      img.src = imageUrl;
+      img.alt = "";
+      img.className = "toast-cover";
+      iconEl.appendChild(img);
+    } else {
+      // Use SVG icons matching page buttons
+      iconEl.classList.add(`toast-icon-${iconType}`);
+      let svgContent = "";
+      
+      switch (iconType) {
+        case "like":
+          svgContent = '<svg viewBox="0 0 24 24"><path d="M2 20h2V8H2v12zm20-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L13.17 0 6.59 6.59C6.22 6.95 6 7.45 6 8v10a2 2 0 0 0 2 2h9a2 2 0 0 0 1.84-1.22l3.02-7.05A2 2 0 0 0 22 11V9z"/></svg>';
+          break;
+        case "dislike":
+          svgContent = '<svg viewBox="0 0 24 24"><path d="M22 4h-2v12h2V4zM2 15a2 2 0 0 0 2 2h6.31l-.95 4.57-.03.32a1.5 1.5 0 0 0 .44 1.06L10.83 24l6.58-6.59c.37-.36.59-.86.59-1.41V6a2 2 0 0 0-2-2H7a2 2 0 0 0-1.84 1.22l-3.02 7.05A2 2 0 0 0 2 13v2z"/></svg>';
+          break;
+        case "remove":
+          svgContent = '<svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7l-10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"></path></svg>';
+          break;
+        case "play":
+          svgContent = '<svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19" /></svg>';
+          break;
+        case "add":
+          svgContent = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+          break;
+        case "reorder":
+          svgContent = '<svg viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>';
+          break;
+        default:
+          svgContent = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/></svg>';
+      }
+      
+      iconEl.innerHTML = svgContent;
+    }
+    
+    toast.appendChild(iconEl);
+  }
+  
+  // Create message element
+  const messageEl = document.createElement("span");
+  messageEl.className = "toast-message";
+  messageEl.textContent = message;
+  toast.appendChild(messageEl);
+  
   toastStack.appendChild(toast);
 
   requestAnimationFrame(() => {
@@ -119,7 +171,19 @@ function handleActivity(activity) {
   }
   const message = formatActivityMessage(activity);
   if (message) {
-    showToast(message);
+    // Determine icon type and image
+    let iconType = activity.type;
+    let imageUrl = null;
+    
+    // For add action, try to find track cover image
+    if (activity.type === "add" && activity.trackId) {
+      const track = playlistTracks.find(t => t.id === activity.trackId);
+      if (track && track.image) {
+        imageUrl = track.image;
+      }
+    }
+    
+    showToast(message, iconType, imageUrl);
   }
 }
 

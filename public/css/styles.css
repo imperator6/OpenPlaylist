@@ -147,6 +147,61 @@ body {
   opacity: 0;
   transform: translateY(-6px);
   transition: opacity 220ms ease, transform 220ms ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.toast-icon-like {
+  color: #1db954;
+}
+
+.toast-icon-dislike {
+  color: #ff6b6b;
+}
+
+.toast-icon-remove {
+  color: #ff6b6b;
+}
+
+.toast-icon-play {
+  color: #1db954;
+}
+
+.toast-icon-add {
+  color: #1db954;
+}
+
+.toast-icon-reorder {
+  color: #ff9800;
+}
+
+.toast-cover {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.toast-message {
+  flex: 1;
+  min-width: 0;
 }
 
 .toast.is-visible {
