@@ -52,6 +52,14 @@ All instructions below must be followed unless explicitly overridden.
 - Never expose Spotify access tokens, refresh tokens, or client secrets to the client.
 - If a new feature needs Spotify data, create/extend a server endpoint first, then update the client to use it.
 
+## SERVER STATIC FILE ROUTES
+- The server in `server/server.js` uses explicit route matching for all static files (no wildcard serving).
+- When adding new static assets (JS, CSS, JSON, images), you MUST add corresponding route handlers.
+- Route pattern: Check `pathname` and call `readStaticFile()` with the absolute file path.
+- Example: `if (pathname === "/js/newfile.js") { return readStaticFile(path.join(__dirname, "..", "public", "js", "newfile.js"), res); }`
+- This applies to all files in `public/` directory including subdirectories like `js/`, `css/`, `locales/`, `icons/`.
+- Missing routes will result in 404 errors and broken functionality.
+
 ## APP DOCUMENTATION (MANDATORY)
 - Maintain a short, high-level app summary in APP_SUMMARY.md (Markdown).
 - After any technical change, update APP_SUMMARY.md if behavior, routes, data flow, or UI features changed.
@@ -126,7 +134,6 @@ logError("Spotify API request failed", { endpoint: "/v1/me/player" }, err);
 - Avoid excessive logging in high-frequency code paths.
 - Logging must not significantly impact performance.
 
-
 ## OUTPUT EXPECTATIONS
 - Generated code should be production-ready unless stated otherwise.
 - Do not include placeholder TODOs unless explicitly requested.
@@ -143,9 +150,22 @@ If a task conflicts with these rules, ask me.
  - After completion, request a merge into main (PR or explicit merge request); do not self-merge.
 
 
-## PWA REQUIREMENTS
-- PWA-enabled apps MUST include a valid `manifest.webmanifest` with app name, icons, `start_url`, `scope`, and display mode.
-- Register a service worker for core static assets; do not cache `/api/*` responses unless explicitly required.
-- Include install metadata on all entry HTML pages (`manifest`, `theme-color`, and Apple touch/meta tags).
-- PWA features must degrade gracefully when service workers or install prompts are unsupported.
-- When any cached static asset changes (HTML, CSS, JS), bump the `APP_CACHE` version string in `public/sw.js` so the service worker invalidates stale caches on the next install.
+## INTERNATIONALIZATION (i18n)
+- This application supports multiple languages using a simple i18n system.
+- Translation files are located in `public/locales/` directory:
+  - `en.json` - English translations (default/fallback)
+  - `de.json` - German translations
+- Language detection is automatic based on browser settings, but users can also manually switch languages via the UI. The swithcer dorpown is located in the top-right corner of the menu bar, represented by a globe icon. Clicking it will show a dropdown with available languages. Selecting a language will immediately update the UI text without requiring a page reload.
+- Supported languages: English (en), German (de). Falls back to English if browser language is not supported.
+
+
+### Translation Key Structure:
+- Keys use dot notation: `section.subsection.key`
+- Common sections: `menu`, `home`, `playlist`, `recently`, `session`, `queue`, `auth`, `common`, `toast`
+- Always add new text to BOTH `en.json` AND `de.json` files.
+- Use placeholder syntax for dynamic values: `{name}`, `{count}`, `{title}`
+
+### Adding New Translations:
+1. Add the English text to `public/locales/en.json`
+2. Add the German translation to `public/locales/de.json`
+4. Keep translation keys organized by feature/page
