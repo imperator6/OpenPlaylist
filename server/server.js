@@ -1706,6 +1706,7 @@ const server = http.createServer(async (req, res) => {
           type: "play",
           trackId: played ? played.id || null : trackId,
           trackTitle: played ? played.title || "" : "",
+          trackImage: played ? played.image || "" : "",
           sessionId: session.sessionId,
           userName: session.name || "",
           at: new Date().toISOString()
@@ -2477,6 +2478,7 @@ const server = http.createServer(async (req, res) => {
       type: "add",
       trackId: normalized.id || null,
       trackTitle: normalized.title || "",
+      trackImage: normalized.image || "",
       sessionId: session.sessionId,
       userName: session.name || "",
       at: new Date().toISOString()
@@ -2577,6 +2579,7 @@ const server = http.createServer(async (req, res) => {
       type: direction === "up" ? "like" : "dislike",
       trackId,
       trackTitle: track.title || "",
+      trackImage: track.image || "",
       sessionId: session.sessionId,
       userName: session.name || "",
       at: new Date().toISOString()
@@ -2687,6 +2690,7 @@ const server = http.createServer(async (req, res) => {
       type: "remove",
       trackId: removed ? removed.id || null : null,
       trackTitle: removed ? removed.title || "" : "",
+      trackImage: removed ? removed.image || "" : "",
       sessionId: session.sessionId,
       userName: session.name || "",
       at: new Date().toISOString()
@@ -2751,6 +2755,7 @@ const server = http.createServer(async (req, res) => {
       type: "reorder",
       trackId: moved ? moved.id || null : null,
       trackTitle: moved ? moved.title || "" : "",
+      trackImage: moved ? moved.image || "" : "",
       sessionId: session.sessionId,
       userName: session.name || "",
       at: new Date().toISOString()
