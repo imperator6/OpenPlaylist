@@ -59,6 +59,17 @@ let currentSearchOffset = 0;
 let currentSearchTracks = [];
 let hasMoreSearchResults = false;
 let lastActivityId = null;
+const ACTIVITY_STORAGE_KEY = "queue_last_activity_id";
+
+try {
+  const storedActivityId = sessionStorage.getItem(ACTIVITY_STORAGE_KEY);
+  const parsedActivityId = storedActivityId ? Number(storedActivityId) : null;
+  if (Number.isInteger(parsedActivityId) && parsedActivityId > 0) {
+    lastActivityId = parsedActivityId;
+  }
+} catch (error) {
+  // sessionStorage can be unavailable in some contexts; ignore.
+}
 
 function showToast(message, iconType = null, imageUrl = null) {
   if (!toastStack || !message) return;
@@ -158,10 +169,20 @@ function handleActivity(activity) {
   // Detect server restart: if activity ID went backwards, reset tracking
   if (lastActivityId && activity.id < lastActivityId) {
     lastActivityId = null;
+    try {
+      sessionStorage.removeItem(ACTIVITY_STORAGE_KEY);
+    } catch (error) {
+      // ignore storage errors
+    }
   }
   
   if (lastActivityId && activity.id <= lastActivityId) return;
   lastActivityId = activity.id;
+  try {
+    sessionStorage.setItem(ACTIVITY_STORAGE_KEY, String(lastActivityId));
+  } catch (error) {
+    // ignore storage errors
+  }
   const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
   if (currentUser && activity.sessionId && activity.sessionId === currentUser.sessionId) {
     return;

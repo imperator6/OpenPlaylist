@@ -4,10 +4,10 @@
   const CHANNEL_NAME = "spotify_stream_all";
   const LEADER_KEY = "spotify_stream_leader";
   const PAYLOAD_KEY = "spotify_stream_payload";
-  const LEADER_TTL_MS = 40000;
-  const PAYLOAD_STALE_MS = 12000;
-  const HEARTBEAT_MS = 5000;
-  const CHECK_MS = 3000;
+  const LEADER_TTL_MS = 15000;
+  const PAYLOAD_STALE_MS = 4000;
+  const HEARTBEAT_MS = 3000;
+  const CHECK_MS = 1000;
   const RETRY_MS = 2000;
 
   const tabId =
