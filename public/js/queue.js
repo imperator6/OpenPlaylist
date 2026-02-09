@@ -30,6 +30,7 @@ const queueConfirmMessage = document.getElementById("queue-confirm-message");
 const queueConfirmClose = document.getElementById("queue-confirm-close");
 const queueConfirmCancel = document.getElementById("queue-confirm-cancel");
 const queueConfirmAccept = document.getElementById("queue-confirm-accept");
+const toastStack = document.getElementById("queue-toast-stack");
 
 const REFRESH_INTERVAL_MS = 8000;
 const PLAYLIST_KEY = "waiting_list_playlist";
@@ -59,6 +60,62 @@ let currentSearchQuery = "";
 let currentSearchOffset = 0;
 let currentSearchTracks = [];
 let hasMoreSearchResults = false;
+let lastActivityId = null;
+
+function showToast(message) {
+  if (!toastStack || !message) return;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  toastStack.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("is-visible");
+  });
+
+  setTimeout(() => {
+    toast.classList.add("is-hiding");
+    toast.addEventListener("transitionend", () => {
+      toast.remove();
+    }, { once: true });
+  }, 5000);
+}
+
+function formatActivityMessage(activity) {
+  if (!activity) return "";
+  const name = activity.userName || "Someone";
+  const title = activity.trackTitle ? ` "${activity.trackTitle}"` : "";
+  switch (activity.type) {
+    case "add":
+      return `${name} added${title}.`;
+    case "remove":
+      return `${name} removed${title}.`;
+    case "like":
+      return `${name} liked${title}.`;
+    case "dislike":
+      return `${name} disliked${title}.`;
+    case "reorder":
+      return `${name} reordered the queue.`;
+    case "play":
+      return `${name} started${title}.`;
+    default:
+      return "";
+  }
+}
+
+function handleActivity(activity) {
+  if (!activity || !activity.id) return;
+  if (lastActivityId && activity.id <= lastActivityId) return;
+  lastActivityId = activity.id;
+  const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
+  if (currentUser && activity.sessionId && activity.sessionId === currentUser.sessionId) {
+    return;
+  }
+  const message = formatActivityMessage(activity);
+  if (message) {
+    showToast(message);
+  }
+}
 
 function resolveQueueConfirm(result) {
   if (queueConfirmResolver) {
@@ -1158,6 +1215,7 @@ function applyPlaylistPayload(data) {
       animateQueueReorder(oldPositions);
     }
   }
+  handleActivity(data.activity);
   if (!currentPlaylistId) {
     setQueueStatus("Select and load a playlist on the Playlist page.");
     return;

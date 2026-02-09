@@ -52,7 +52,9 @@ const sharedQueue = {
   lastError: null,
   activeDeviceId: null,
   activeDeviceName: null,
-  voteSortEnabled: false
+  voteSortEnabled: false,
+  lastActivity: null,
+  lastActivityId: 0
 };
 const sharedPlaybackCache = {
   playback: null,
@@ -685,7 +687,8 @@ function notifyQueueSubscribers() {
     voteSortEnabled: sharedQueue.voteSortEnabled,
     lastError: sharedQueue.lastError,
     activeDeviceId: sharedQueue.activeDeviceId,
-    activeDeviceName: sharedQueue.activeDeviceName
+    activeDeviceName: sharedQueue.activeDeviceName,
+    activity: sharedQueue.lastActivity
   };
 
   const subscribers = queueSubscribers.splice(0, queueSubscribers.length);
@@ -1695,6 +1698,19 @@ const server = http.createServer(async (req, res) => {
         sharedQueue.lastSeenTrackId = trackId;
         sharedQueue.lastAdvanceAt = Date.now();
         ensureTrackAtFront(trackId);
+        const session = getUserSession(req);
+        sharedQueue.lastActivityId += 1;
+        const played = sharedQueue.tracks[0];
+        sharedQueue.lastActivity = {
+          id: sharedQueue.lastActivityId,
+          type: "play",
+          trackId: played ? played.id || null : trackId,
+          trackTitle: played ? played.title || "" : "",
+          sessionId: session.sessionId,
+          userName: session.name || "",
+          at: new Date().toISOString()
+        };
+        notifyQueueSubscribers();
       }
     }
 
@@ -2009,7 +2025,8 @@ const server = http.createServer(async (req, res) => {
         voteSortEnabled: sharedQueue.voteSortEnabled,
         lastError: sharedQueue.lastError,
         activeDeviceId: sharedQueue.activeDeviceId,
-        activeDeviceName: sharedQueue.activeDeviceName
+        activeDeviceName: sharedQueue.activeDeviceName,
+        activity: sharedQueue.lastActivity
       });
     }
 
@@ -2032,7 +2049,8 @@ const server = http.createServer(async (req, res) => {
         voteSortEnabled: sharedQueue.voteSortEnabled,
         lastError: sharedQueue.lastError,
         activeDeviceId: sharedQueue.activeDeviceId,
-        activeDeviceName: sharedQueue.activeDeviceName
+        activeDeviceName: sharedQueue.activeDeviceName,
+        activity: sharedQueue.lastActivity
       });
     }, 30000);
 
@@ -2453,7 +2471,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     sharedQueue.updatedAt = new Date().toISOString();
+    sharedQueue.lastActivityId += 1;
+    sharedQueue.lastActivity = {
+      id: sharedQueue.lastActivityId,
+      type: "add",
+      trackId: normalized.id || null,
+      trackTitle: normalized.title || "",
+      sessionId: session.sessionId,
+      userName: session.name || "",
+      at: new Date().toISOString()
+    };
     persistQueueStore();
+    notifyQueueSubscribers();
 
     logInfo("Track added to queue", {
       trackId: normalized.id,
@@ -2465,8 +2494,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       tracks: sharedQueue.tracks
     });
-    // Note: notifyQueueSubscribers after sending response not needed here,
-    // but for long-poll subscribers we notify before returning.
+    // Note: notifyQueueSubscribers performed before returning.
   }
 
   if (pathname === "/api/queue/vote") {
@@ -2543,6 +2571,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     sharedQueue.updatedAt = new Date().toISOString();
+    sharedQueue.lastActivityId += 1;
+    sharedQueue.lastActivity = {
+      id: sharedQueue.lastActivityId,
+      type: direction === "up" ? "like" : "dislike",
+      trackId,
+      trackTitle: track.title || "",
+      sessionId: session.sessionId,
+      userName: session.name || "",
+      at: new Date().toISOString()
+    };
     persistQueueStore();
     notifyQueueSubscribers();
 
@@ -2643,6 +2681,16 @@ const server = http.createServer(async (req, res) => {
       }
     }
     sharedQueue.updatedAt = new Date().toISOString();
+    sharedQueue.lastActivityId += 1;
+    sharedQueue.lastActivity = {
+      id: sharedQueue.lastActivityId,
+      type: "remove",
+      trackId: removed ? removed.id || null : null,
+      trackTitle: removed ? removed.title || "" : "",
+      sessionId: session.sessionId,
+      userName: session.name || "",
+      at: new Date().toISOString()
+    };
     persistQueueStore();
     notifyQueueSubscribers();
 
@@ -2696,6 +2744,17 @@ const server = http.createServer(async (req, res) => {
       sharedQueue.currentIndex += 1;
     }
     sharedQueue.updatedAt = new Date().toISOString();
+    sharedQueue.lastActivityId += 1;
+    const session = getUserSession(req);
+    sharedQueue.lastActivity = {
+      id: sharedQueue.lastActivityId,
+      type: "reorder",
+      trackId: moved ? moved.id || null : null,
+      trackTitle: moved ? moved.title || "" : "",
+      sessionId: session.sessionId,
+      userName: session.name || "",
+      at: new Date().toISOString()
+    };
     persistQueueStore();
     notifyQueueSubscribers();
 
