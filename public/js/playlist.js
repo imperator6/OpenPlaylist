@@ -531,7 +531,7 @@ fetchActivePlaylistCard();
 
 const queueStatusCard = document.getElementById("home-queue-status");
 const clearQueueBtn = document.getElementById("home-clear-queue-btn");
-let queueStreamSince = null;
+let queueUnifiedSince = null;
 
 function setQueueStatus(count) {
   if (!queueStatusCard) return;
@@ -550,16 +550,17 @@ function setQueueStatus(count) {
 async function startQueuePoll() {
   if (!queueStatusCard) return;
   try {
-    const query = queueStreamSince ? `?since=${encodeURIComponent(queueStreamSince)}` : "";
-    const response = await fetch(`/api/queue/stream${query}`);
+    const query = queueUnifiedSince ? `?since=${encodeURIComponent(queueUnifiedSince)}` : "";
+    const response = await fetch(`/api/stream/all${query}`);
     if (!response.ok) {
       setTimeout(startQueuePoll, 3000);
       return;
     }
     const data = await response.json();
-    queueStreamSince = data.updatedAt || new Date().toISOString();
-    if (typeof data.queueCount === "number") {
-      setQueueStatus(data.queueCount);
+    queueUnifiedSince = data.updatedAt || new Date().toISOString();
+    const queueCount = data.playback ? data.playback.queueCount : null;
+    if (typeof queueCount === "number") {
+      setQueueStatus(queueCount);
     }
     startQueuePoll();
   } catch (error) {

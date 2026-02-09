@@ -61,15 +61,13 @@ const sharedPlaybackCache = {
   updatedAt: null,
   lastError: null
 };
-const playbackSubscribers = [];
 const sharedDevicesCache = {
   devices: [],
   updatedAt: null,
   lastError: null,
   preferredDeviceId: null
 };
-const deviceSubscribers = [];
-const queueSubscribers = [];
+const unifiedSubscribers = [];
 const SERVICE_NAME = "spotify-server";
 
 function writeLog(line, isError) {
@@ -634,9 +632,8 @@ async function refreshDevicesCache() {
   }
 }
 
-function notifyPlaybackSubscribers() {
-  if (!playbackSubscribers.length) return;
-  const payload = {
+function buildPlaybackPayload() {
+  return {
     playback: sharedPlaybackCache.playback,
     updatedAt: sharedPlaybackCache.updatedAt,
     lastError: sharedPlaybackCache.lastError,
@@ -647,33 +644,19 @@ function notifyPlaybackSubscribers() {
       Date.now() - Date.parse(sharedPlaybackCache.updatedAt) >
         PLAYBACK_CACHE_STALE_MS
   };
-
-  const subscribers = playbackSubscribers.splice(0, playbackSubscribers.length);
-  subscribers.forEach(({ res, timeoutId }) => {
-    clearTimeout(timeoutId);
-    sendJson(res, 200, payload);
-  });
 }
 
-function notifyDeviceSubscribers() {
-  if (!deviceSubscribers.length) return;
-  const payload = {
+function buildDevicePayload() {
+  return {
     devices: sharedDevicesCache.devices,
     updatedAt: sharedDevicesCache.updatedAt,
     lastError: sharedDevicesCache.lastError,
     preferredDeviceId: sharedDevicesCache.preferredDeviceId
   };
-
-  const subscribers = deviceSubscribers.splice(0, deviceSubscribers.length);
-  subscribers.forEach(({ res, timeoutId }) => {
-    clearTimeout(timeoutId);
-    sendJson(res, 200, payload);
-  });
 }
 
-function notifyQueueSubscribers() {
-  if (!queueSubscribers.length) return;
-  const payload = {
+function buildQueuePayload() {
+  return {
     playlistId: sharedQueue.activePlaylistId,
     playlistName: sharedQueue.activePlaylistName,
     playlistImage: sharedQueue.activePlaylistImage,
@@ -690,12 +673,54 @@ function notifyQueueSubscribers() {
     activeDeviceName: sharedQueue.activeDeviceName,
     activity: sharedQueue.lastActivity
   };
+}
 
-  const subscribers = queueSubscribers.splice(0, queueSubscribers.length);
+function resolveLatestTimestamp(timestamps) {
+  const parsed = timestamps
+    .map((value) => (value ? Date.parse(value) : NaN))
+    .filter((value) => !Number.isNaN(value));
+  if (!parsed.length) return null;
+  return new Date(Math.max(...parsed)).toISOString();
+}
+
+function buildUnifiedPayload(authOk) {
+  const playback = buildPlaybackPayload();
+  const devices = buildDevicePayload();
+  const queue = buildQueuePayload();
+  return {
+    updatedAt: resolveLatestTimestamp([
+      playback.updatedAt,
+      devices.updatedAt,
+      queue.updatedAt
+    ]),
+    authOk,
+    playback,
+    devices,
+    queue
+  };
+}
+
+function notifyUnifiedSubscribers() {
+  if (!unifiedSubscribers.length) return;
+  const authOk = tokenValid(sharedSession);
+  const payload = buildUnifiedPayload(authOk);
+  const subscribers = unifiedSubscribers.splice(0, unifiedSubscribers.length);
   subscribers.forEach(({ res, timeoutId }) => {
     clearTimeout(timeoutId);
     sendJson(res, 200, payload);
   });
+}
+
+function notifyPlaybackSubscribers() {
+  notifyUnifiedSubscribers();
+}
+
+function notifyDeviceSubscribers() {
+  notifyUnifiedSubscribers();
+}
+
+function notifyQueueSubscribers() {
+  notifyUnifiedSubscribers();
 }
 
 const PLAYBACK_CACHE_INTERVAL_MS = 8000;
@@ -1387,60 +1412,35 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  if (pathname === "/api/queue/stream") {
-    if (!(await ensureValidToken(sharedSession))) {
-      return sendJson(res, 401, { error: "Not connected" });
-    }
-
+  if (pathname === "/api/stream/all") {
     const since = url.searchParams.get("since");
     const sinceMs = since ? Date.parse(since) : null;
-    if (
-      sharedPlaybackCache.updatedAt &&
-      (!sinceMs || Date.parse(sharedPlaybackCache.updatedAt) > sinceMs)
-    ) {
-      const stale =
-        !sharedPlaybackCache.updatedAt ||
-        Date.now() - Date.parse(sharedPlaybackCache.updatedAt) >
-          PLAYBACK_CACHE_STALE_MS;
-      return sendJson(res, 200, {
-        playback: sharedPlaybackCache.playback,
-        updatedAt: sharedPlaybackCache.updatedAt,
-        lastError: sharedPlaybackCache.lastError,
-        stale,
-        autoPlayEnabled: sharedQueue.autoPlayEnabled,
-        queueCount: Array.isArray(sharedQueue.tracks)
-          ? sharedQueue.tracks.length
-          : 0
-      });
+    const hasAuth = Boolean(sharedSession.token || sharedSession.refreshToken);
+    if (hasAuth) {
+      await ensureValidToken(sharedSession);
+    }
+    const authOk = tokenValid(sharedSession);
+    const payload = buildUnifiedPayload(authOk);
+
+    if (payload.updatedAt && (!sinceMs || Date.parse(payload.updatedAt) > sinceMs)) {
+      return sendJson(res, 200, payload);
     }
 
     const timeoutId = setTimeout(() => {
-      const index = playbackSubscribers.findIndex((item) => item.res === res);
+      const index = unifiedSubscribers.findIndex((item) => item.res === res);
       if (index >= 0) {
-        playbackSubscribers.splice(index, 1);
+        unifiedSubscribers.splice(index, 1);
       }
-      const stale =
-        !sharedPlaybackCache.updatedAt ||
-        Date.now() - Date.parse(sharedPlaybackCache.updatedAt) >
-          PLAYBACK_CACHE_STALE_MS;
-      sendJson(res, 200, {
-        playback: sharedPlaybackCache.playback,
-        updatedAt: sharedPlaybackCache.updatedAt,
-        lastError: sharedPlaybackCache.lastError,
-        stale,
-        autoPlayEnabled: sharedQueue.autoPlayEnabled,
-        queueCount: Array.isArray(sharedQueue.tracks)
-          ? sharedQueue.tracks.length
-          : 0
-      });
-    }, 25000);
+      const timeoutPayload = buildUnifiedPayload(tokenValid(sharedSession));
+      sendJson(res, 200, timeoutPayload);
+    }, 30000);
 
-    playbackSubscribers.push({ res, timeoutId });
+    unifiedSubscribers.push({ res, timeoutId });
     res.on("close", () => {
-      const index = playbackSubscribers.findIndex((item) => item.res === res);
+      const index = unifiedSubscribers.findIndex((item) => item.res === res);
       if (index >= 0) {
-        clearTimeout(playbackSubscribers[index].timeoutId);
-        playbackSubscribers.splice(index, 1);
+        clearTimeout(unifiedSubscribers[index].timeoutId);
+        unifiedSubscribers.splice(index, 1);
       }
     });
     return;
@@ -1791,49 +1791,6 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  if (pathname === "/api/player/devices/stream") {
-    if (!(await ensureValidToken(sharedSession))) {
-      return sendJson(res, 401, { error: "Not connected" });
-    }
-
-    const since = url.searchParams.get("since");
-    const sinceMs = since ? Date.parse(since) : null;
-    if (
-      sharedDevicesCache.updatedAt &&
-      (!sinceMs || Date.parse(sharedDevicesCache.updatedAt) > sinceMs)
-    ) {
-      return sendJson(res, 200, {
-        devices: sharedDevicesCache.devices,
-        updatedAt: sharedDevicesCache.updatedAt,
-        lastError: sharedDevicesCache.lastError,
-        preferredDeviceId: sharedDevicesCache.preferredDeviceId
-      });
-    }
-
-    const timeoutId = setTimeout(() => {
-      const index = deviceSubscribers.findIndex((item) => item.res === res);
-      if (index >= 0) {
-        deviceSubscribers.splice(index, 1);
-      }
-      sendJson(res, 200, {
-        devices: sharedDevicesCache.devices,
-        updatedAt: sharedDevicesCache.updatedAt,
-        lastError: sharedDevicesCache.lastError,
-        preferredDeviceId: sharedDevicesCache.preferredDeviceId
-      });
-    }, 25000);
-
-    deviceSubscribers.push({ res, timeoutId });
-    res.on("close", () => {
-      const index = deviceSubscribers.findIndex((item) => item.res === res);
-      if (index >= 0) {
-        clearTimeout(deviceSubscribers[index].timeoutId);
-        deviceSubscribers.splice(index, 1);
-      }
-    });
-    return;
-  }
-
   if (pathname === "/api/player/transfer") {
     if (!requirePermission(req, res, "device:transfer")) {
       return;
@@ -2002,68 +1959,6 @@ const server = http.createServer(async (req, res) => {
       activeDeviceId: sharedQueue.activeDeviceId,
       activeDeviceName: sharedQueue.activeDeviceName
     });
-  }
-
-  if (pathname === "/api/queue/playlist/stream") {
-    // No Spotify token required; playlist data is server-side state.
-    const since = url.searchParams.get("since");
-    const sinceMs = since ? Date.parse(since) : null;
-    if (
-      sharedQueue.updatedAt &&
-      (!sinceMs || Date.parse(sharedQueue.updatedAt) > sinceMs)
-    ) {
-      return sendJson(res, 200, {
-        playlistId: sharedQueue.activePlaylistId,
-        playlistName: sharedQueue.activePlaylistName,
-        playlistImage: sharedQueue.activePlaylistImage,
-        playlistOwner: sharedQueue.activePlaylistOwner,
-        playlistTrackCount: sharedQueue.activePlaylistTrackCount,
-        playlistDescription: sharedQueue.activePlaylistDescription,
-        tracks: enrichedTracks(),
-        updatedAt: sharedQueue.updatedAt,
-        currentIndex: sharedQueue.currentIndex,
-        autoPlayEnabled: sharedQueue.autoPlayEnabled,
-        voteSortEnabled: sharedQueue.voteSortEnabled,
-        lastError: sharedQueue.lastError,
-        activeDeviceId: sharedQueue.activeDeviceId,
-        activeDeviceName: sharedQueue.activeDeviceName,
-        activity: sharedQueue.lastActivity
-      });
-    }
-
-    const timeoutId = setTimeout(() => {
-      const index = queueSubscribers.findIndex((item) => item.res === res);
-      if (index >= 0) {
-        queueSubscribers.splice(index, 1);
-      }
-      sendJson(res, 200, {
-        playlistId: sharedQueue.activePlaylistId,
-        playlistName: sharedQueue.activePlaylistName,
-        playlistImage: sharedQueue.activePlaylistImage,
-        playlistOwner: sharedQueue.activePlaylistOwner,
-        playlistTrackCount: sharedQueue.activePlaylistTrackCount,
-        playlistDescription: sharedQueue.activePlaylistDescription,
-        tracks: enrichedTracks(),
-        updatedAt: sharedQueue.updatedAt,
-        currentIndex: sharedQueue.currentIndex,
-        autoPlayEnabled: sharedQueue.autoPlayEnabled,
-        voteSortEnabled: sharedQueue.voteSortEnabled,
-        lastError: sharedQueue.lastError,
-        activeDeviceId: sharedQueue.activeDeviceId,
-        activeDeviceName: sharedQueue.activeDeviceName,
-        activity: sharedQueue.lastActivity
-      });
-    }, 30000);
-
-    queueSubscribers.push({ res, timeoutId });
-    res.on("close", () => {
-      const index = queueSubscribers.findIndex((item) => item.res === res);
-      if (index >= 0) {
-        clearTimeout(queueSubscribers[index].timeoutId);
-        queueSubscribers.splice(index, 1);
-      }
-    });
-    return;
   }
 
   if (pathname === "/api/queue/autoplay") {

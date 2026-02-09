@@ -48,9 +48,7 @@ let remainingTimerId = null;
 let remainingState = null;
 let lastRemainingText = "";
 let selectedDeviceId = null;
-let playbackSince = null;
-let devicesSince = null;
-let playlistSince = null;
+let unifiedSince = null;
 let lastOverlayTrigger = null;
 let pendingInsertIndex = null;
 let pendingInsertLabel = "";
@@ -413,39 +411,44 @@ function renderDeviceOptions(devices, activeId, preferredId) {
   setDeviceStatus("");
 }
 
-async function startDevicesLongPoll() {
-  if (!deviceSelect) return;
-  try {
-    const query = devicesSince ? `?since=${encodeURIComponent(devicesSince)}` : "";
-    const response = await fetch(`/api/player/devices/stream${query}`);
-    if (!response.ok) {
-      if (response.status === 401) {
-        setQueueError("No active session. Connect Spotify on the Session page.");
-        setDeviceStatus("No active session. Connect Spotify on the Session page.");
-        setTimeout(startDevicesLongPoll, 2000);
-        return;
-      }
-      const text = await response.text();
-      console.error("Devices stream failed", response.status, text);
-      setDeviceStatus("Unable to load devices.");
-      setTimeout(startDevicesLongPoll, 2000);
-      return;
-    }
+function applyUnifiedQueuePayload(data) {
+  if (!data) return;
+  const authOk = data.authOk !== false;
+  const playbackPayload = data.playback || null;
+  const devicesPayload = data.devices || null;
+  const queuePayload = data.queue || null;
 
-    const data = await response.json();
-    setQueueError("");
-    devicesSince = data.updatedAt || new Date().toISOString();
-    const devices = Array.isArray(data.devices) ? data.devices : [];
-    const active = devices.find((device) => device.is_active);
-    const preferred = data.preferredDeviceId || (active ? active.id : null);
-    if (preferred && selectedDeviceId !== preferred) {
-      selectedDeviceId = preferred;
+  if (!authOk) {
+    setQueueError("No active session. Connect Spotify on the Session page.");
+    if (playbackStatus) {
+      playbackStatus.textContent = "Disconnected";
+      playbackStatus.style.color = "#ff7a6c";
     }
-    renderDeviceOptions(devices, active ? active.id : null, preferred);
-    startDevicesLongPoll();
-  } catch (error) {
-    console.error("Devices stream error", error);
-    setTimeout(startDevicesLongPoll, 2000);
+    if (playbackHint) {
+      playbackHint.textContent =
+        "No active session. Connect Spotify on the Session page.";
+    }
+    setDeviceStatus("No active session. Connect Spotify on the Session page.");
+  } else {
+    setQueueError("");
+    if (playbackPayload) {
+      renderPlayback(playbackPayload);
+    }
+    if (devicesPayload && deviceSelect) {
+      const devices = Array.isArray(devicesPayload.devices)
+        ? devicesPayload.devices
+        : [];
+      const active = devices.find((device) => device.is_active);
+      const preferred = devicesPayload.preferredDeviceId || (active ? active.id : null);
+      if (preferred && selectedDeviceId !== preferred) {
+        selectedDeviceId = preferred;
+      }
+      renderDeviceOptions(devices, active ? active.id : null, preferred);
+    }
+  }
+
+  if (queuePayload) {
+    applyPlaylistPayload(queuePayload);
   }
 }
 
@@ -1105,46 +1108,24 @@ async function submitVote(trackId, direction) {
   }
 }
 
-async function startPlaybackLongPoll() {
+async function startUnifiedLongPoll() {
   try {
-    const query = playbackSince ? `?since=${encodeURIComponent(playbackSince)}` : "";
-    const response = await fetch(`/api/queue/stream${query}`);
+    const query = unifiedSince ? `?since=${encodeURIComponent(unifiedSince)}` : "";
+    const response = await fetch(`/api/stream/all${query}`);
     if (!response.ok) {
-      if (response.status === 401) {
-        setQueueError("No active session. Connect Spotify on the Session page.");
-        if (playbackStatus) {
-          playbackStatus.textContent = "Disconnected";
-          playbackStatus.style.color = "#ff7a6c";
-        }
-        if (playbackHint) {
-          playbackHint.textContent =
-            "No active session. Connect Spotify on the Session page.";
-        }
-        setTimeout(startPlaybackLongPoll, 2000);
-        return;
-      }
       const text = await response.text();
-      console.error("Playback stream failed", response.status, text);
-      if (playbackStatus) {
-        playbackStatus.textContent = "Disconnected";
-        playbackStatus.style.color = "#ff7a6c";
-      }
-      if (playbackHint) {
-        playbackHint.textContent =
-          "Connect Spotify on the Session page to load playback.";
-      }
-      setTimeout(startPlaybackLongPoll, 2000);
+      console.error("Unified stream failed", response.status, text);
+      setTimeout(startUnifiedLongPoll, 2000);
       return;
     }
 
     const data = await response.json();
-    setQueueError("");
-    playbackSince = data.updatedAt || new Date().toISOString();
-    renderPlayback(data);
-    startPlaybackLongPoll();
+    unifiedSince = data.updatedAt || new Date().toISOString();
+    applyUnifiedQueuePayload(data);
+    startUnifiedLongPoll();
   } catch (error) {
-    console.error("Playback stream error", error);
-    setTimeout(startPlaybackLongPoll, 2000);
+    console.error("Unified stream error", error);
+    setTimeout(startUnifiedLongPoll, 2000);
   }
 }
 
@@ -1294,31 +1275,7 @@ function applyPlaylistPayload(data) {
   setQueueStatus("Drag tracks to reorder. Changes sync to all sessions.");
 }
 
-async function startPlaylistLongPoll() {
-  try {
-    const query = playlistSince ? `?since=${encodeURIComponent(playlistSince)}` : "";
-    const response = await fetch(`/api/queue/playlist/stream${query}`);
-    if (!response.ok) {
-      if (response.status === 401) {
-        setQueueError("No active session. Connect Spotify on the Session page.");
-        setTimeout(startPlaylistLongPoll, 1000);
-        return;
-      }
-      const text = await response.text();
-      console.error("Playlist stream failed", response.status, text);
-      setTimeout(startPlaylistLongPoll, 1000);
-      return;
-    }
 
-    const data = await response.json();
-    playlistSince = data.updatedAt || new Date().toISOString();
-    applyPlaylistPayload(data);
-    startPlaylistLongPoll();
-  } catch (error) {
-    console.error("Playlist stream error", error);
-    setTimeout(startPlaylistLongPoll, 1000);
-  }
-}
 
 async function searchTracks(query, offset = 0) {
   if (!query.trim()) return;
@@ -1665,10 +1622,8 @@ async function initializeQueue() {
   if (window.authAPI) {
     await window.authAPI.fetchUserStatus();
   }
-  startPlaybackLongPoll();
+  startUnifiedLongPoll();
   fetchPlaylists();
-  startDevicesLongPoll();
-  startPlaylistLongPoll();
 }
 
 initializeQueue();

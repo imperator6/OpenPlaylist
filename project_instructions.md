@@ -45,6 +45,11 @@ All instructions below must be followed unless explicitly overridden.
 - Do not break functionality on mobile devices.
 - Handle errors gracefully.
 
+## LONG-POLLING (CLIENT)
+- Use a single long-poll endpoint for all real-time client updates.
+- Client pages MUST use `/api/stream/all` instead of multiple parallel long polls.
+- Do not introduce new per-feature long polls; extend the unified payload instead.
+
 ## SPOTIFY API (SERVER-ONLY)
 - All calls to the Spotify Web API MUST be done on the server (never in browser JS).
 - The client may only call local server endpoints (e.g., /api/...) that proxy Spotify requests.

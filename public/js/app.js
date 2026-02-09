@@ -32,8 +32,7 @@ const homeClearQueueBtn = document.getElementById("home-clear-queue-btn");
 let homeSelectedDeviceId = null;
 let homeProgressTimer = null;
 let homeProgressState = null;
-let homePlaybackSince = null;
-let homeDevicesSince = null;
+let homeUnifiedSince = null;
 let homeQueueCount = null;
 let homeIsSeeking = false;
 
@@ -277,35 +276,47 @@ function applyHomePlaybackPayload(data) {
   }
 }
 
-async function startHomePlaybackLongPoll() {
-  if (!homePlaybackStatus) return;
+async function startHomeUnifiedLongPoll() {
+  if (!homePlaybackStatus && !homeDeviceList) return;
   try {
-    const query = homePlaybackSince ? `?since=${encodeURIComponent(homePlaybackSince)}` : "";
-    const response = await fetch(`/api/queue/stream${query}`);
+    const query = homeUnifiedSince ? `?since=${encodeURIComponent(homeUnifiedSince)}` : "";
+    const response = await fetch(`/api/stream/all${query}`);
     if (!response.ok) {
-      if (response.status === 401) {
-        setHomeSessionError("No active session. Connect Spotify on the Session page.");
-        setHomePlaybackStatus("Disconnected", false);
-        setHomePlaybackHint("No active session. Connect Spotify on the Session page.");
-        setTimeout(startHomePlaybackLongPoll, 2000);
-        return;
-      }
       const text = await response.text();
-      console.error("Home playback stream failed", response.status, text);
+      console.error("Home unified stream failed", response.status, text);
       setHomePlaybackStatus("Disconnected", false);
       setHomePlaybackHint("Connect Spotify on the Session page to load playback.");
-      setTimeout(startHomePlaybackLongPoll, 2000);
+      setHomeDeviceStatus("Unable to load devices.");
+      setTimeout(startHomeUnifiedLongPoll, 2000);
       return;
     }
 
     const data = await response.json();
-    setHomeSessionError("");
-    homePlaybackSince = data.updatedAt || new Date().toISOString();
-    applyHomePlaybackPayload(data);
-    startHomePlaybackLongPoll();
+    homeUnifiedSince = data.updatedAt || new Date().toISOString();
+    if (data.authOk === false) {
+      setHomeSessionError("No active session. Connect Spotify on the Session page.");
+      setHomePlaybackStatus("Disconnected", false);
+      setHomePlaybackHint("No active session. Connect Spotify on the Session page.");
+      setHomeDeviceStatus("No active session. Connect Spotify on the Session page.");
+    } else {
+      setHomeSessionError("");
+      if (data.playback) {
+        applyHomePlaybackPayload(data.playback);
+      }
+      if (data.devices) {
+        const devices = Array.isArray(data.devices.devices) ? data.devices.devices : [];
+        const active = devices.find((device) => device.is_active);
+        const preferred = data.devices.preferredDeviceId || (active ? active.id : null);
+        if (preferred && homeSelectedDeviceId !== preferred) {
+          homeSelectedDeviceId = preferred;
+        }
+        renderHomeDevices(devices, preferred);
+      }
+    }
+    startHomeUnifiedLongPoll();
   } catch (error) {
-    console.error("Home playback stream error", error);
-    setTimeout(startHomePlaybackLongPoll, 2000);
+    console.error("Home unified stream error", error);
+    setTimeout(startHomeUnifiedLongPoll, 2000);
   }
 }
 
@@ -339,42 +350,6 @@ function renderHomeDevices(devices, preferredId) {
     homeDeviceList.appendChild(li);
   });
   setHomeDeviceStatus("");
-}
-
-async function startHomeDevicesLongPoll() {
-  if (!homeDeviceList) return;
-  try {
-    const query = homeDevicesSince ? `?since=${encodeURIComponent(homeDevicesSince)}` : "";
-    const response = await fetch(`/api/player/devices/stream${query}`);
-    if (!response.ok) {
-      if (response.status === 401) {
-        setHomeSessionError("No active session. Connect Spotify on the Session page.");
-        setHomeDeviceStatus("No active session. Connect Spotify on the Session page.");
-        setTimeout(startHomeDevicesLongPoll, 2000);
-        return;
-      }
-      const text = await response.text();
-      console.error("Home devices stream failed", response.status, text);
-      setHomeDeviceStatus("Unable to load devices.");
-      setTimeout(startHomeDevicesLongPoll, 2000);
-      return;
-    }
-
-    const data = await response.json();
-    setHomeSessionError("");
-    homeDevicesSince = data.updatedAt || new Date().toISOString();
-    const devices = Array.isArray(data.devices) ? data.devices : [];
-    const active = devices.find((device) => device.is_active);
-    const preferred = data.preferredDeviceId || (active ? active.id : null);
-    if (preferred && homeSelectedDeviceId !== preferred) {
-      homeSelectedDeviceId = preferred;
-    }
-    renderHomeDevices(devices, preferred);
-    startHomeDevicesLongPoll();
-  } catch (error) {
-    console.error("Home devices stream error", error);
-    setTimeout(startHomeDevicesLongPoll, 2000);
-  }
 }
 
 async function refreshHomeDevices() {
@@ -430,8 +405,7 @@ async function updateHomeAutoplay(enabled) {
 async function initializeApp() {
   await window.authAPI.fetchUserStatus();
   fetchStatus();
-  startHomePlaybackLongPoll();
-  startHomeDevicesLongPoll();
+  startHomeUnifiedLongPoll();
 }
 
 initializeApp();
@@ -533,13 +507,13 @@ if (homePlayToggle) {
       if (!response.ok) {
         const text = await response.text();
         console.error("Home play toggle failed", response.status, text);
-        startHomePlaybackLongPoll();
+        startHomeUnifiedLongPoll();
         return;
       }
-      startHomePlaybackLongPoll();
+      startHomeUnifiedLongPoll();
     } catch (error) {
       console.error("Home play toggle error", error);
-      startHomePlaybackLongPoll();
+      startHomeUnifiedLongPoll();
     }
   });
 }
