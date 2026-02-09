@@ -135,7 +135,7 @@ body {
 }
 
 .toast {
-  background: rgba(102, 198, 255, 0.14);
+  background: #1e3a4f;
   color: #f7f7f7;
   border: 1px solid rgba(102, 198, 255, 0.4);
   border-radius: 12px;

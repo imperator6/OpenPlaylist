@@ -105,6 +105,12 @@ function formatActivityMessage(activity) {
 
 function handleActivity(activity) {
   if (!activity || !activity.id) return;
+  
+  // Detect server restart: if activity ID went backwards, reset tracking
+  if (lastActivityId && activity.id < lastActivityId) {
+    lastActivityId = null;
+  }
+  
   if (lastActivityId && activity.id <= lastActivityId) return;
   lastActivityId = activity.id;
   const currentUser = window.authAPI ? window.authAPI.getCurrentUser() : null;
