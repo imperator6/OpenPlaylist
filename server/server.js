@@ -16,6 +16,10 @@ const AUTO_REFRESH =
   String(process.env.AUTO_REFRESH || "1").toLowerCase() === "1";
 const SESSION_STORE = process.env.SESSION_STORE || path.join(__dirname, "..", "storage", "session_store.json");
 const QUEUE_STORE = process.env.QUEUE_STORE || path.join(__dirname, "..", "storage", "queue_store.json");
+const ACTION_LOG_DIR = process.env.ACTION_LOG_DIR || path.join(__dirname, "..", "storage");
+const ADD_LOG_FILE = process.env.ADD_LOG_FILE || path.join(ACTION_LOG_DIR, "user_adds.jsonl");
+const LIKE_LOG_FILE = process.env.LIKE_LOG_FILE || path.join(ACTION_LOG_DIR, "user_likes.jsonl");
+const DISLIKE_LOG_FILE = process.env.DISLIKE_LOG_FILE || path.join(ACTION_LOG_DIR, "user_dislikes.jsonl");
 const REDIRECT_URI =
   process.env.SPOTIFY_REDIRECT_URI || `http://localhost:${PORT}/callback`;
 const LOG_LEVEL_NAME = String(process.env.LOG_LEVEL || "INFO").toUpperCase();
@@ -129,6 +133,15 @@ function logWarn(message, context, err) {
 
 function logError(message, context, err) {
   log("ERROR", message, context, err);
+}
+
+function appendActionLog(filePath, record, label) {
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.appendFileSync(filePath, `${JSON.stringify(record)}\n`, "utf-8");
+  } catch (err) {
+    logWarn("Failed to append action log", { label, file: filePath }, err);
+  }
 }
 
 function isSpotifyUrl(url) {
@@ -2390,6 +2403,28 @@ const server = http.createServer(async (req, res) => {
       role: session.role
     });
 
+    appendActionLog(
+      ADD_LOG_FILE,
+      {
+        at: new Date().toISOString(),
+        action: "add",
+        track: {
+          id: normalized.id,
+          uri: normalized.uri,
+          title: normalized.title,
+          artist: normalized.artist,
+          album: normalized.album,
+          duration_ms: normalized.duration_ms
+        },
+        user: {
+          sessionId: session.sessionId,
+          name: session.name || "",
+          role: session.role
+        }
+      },
+      "add"
+    );
+
     return sendJson(res, 200, {
       ok: true,
       tracks: sharedQueue.tracks
@@ -2428,6 +2463,7 @@ const server = http.createServer(async (req, res) => {
     const session = getUserSession(req);
     const isAdmin = session.role === "admin";
     const voter = { sessionId: session.sessionId, name: session.name || "" };
+    let didAddVote = false;
 
     logInfo("Vote received", {
       trackId,
@@ -2438,6 +2474,7 @@ const server = http.createServer(async (req, res) => {
 
     if (isAdmin) {
       track.votes[direction].push(voter);
+      didAddVote = true;
     } else {
       const prevUp = track.votes.up.findIndex((v) => v.sessionId === session.sessionId);
       const prevDown = track.votes.down.findIndex((v) => v.sessionId === session.sessionId);
@@ -2449,6 +2486,7 @@ const server = http.createServer(async (req, res) => {
 
       if (!wasSameDirection) {
         track.votes[direction].push(voter);
+        didAddVote = true;
       }
     }
 
@@ -2497,6 +2535,31 @@ const server = http.createServer(async (req, res) => {
       userName: session.name || "",
       at: new Date().toISOString()
     };
+
+    if (didAddVote) {
+      const voteAction = direction === "up" ? "like" : "dislike";
+      appendActionLog(
+        voteAction === "like" ? LIKE_LOG_FILE : DISLIKE_LOG_FILE,
+        {
+          at: new Date().toISOString(),
+          action: voteAction,
+          track: {
+            id: track.id || null,
+            uri: track.uri || null,
+            title: track.title || "",
+            artist: track.artist || "",
+            album: track.album || "",
+            duration_ms: track.duration_ms || null
+          },
+          user: {
+            sessionId: session.sessionId,
+            name: session.name || "",
+            role: session.role
+          }
+        },
+        voteAction
+      );
+    }
     persistQueueStore();
     notifyQueueSubscribers();
 

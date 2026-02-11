@@ -56,6 +56,7 @@ open-playlist/
 ## Server Responsibilities
 - OAuth flow + token refresh; tokens stored in `session_store.json`.
 - Waiting-list playlist state stored in `queue_store.json` and updated server-side.
+- User add/like/dislike actions append JSONL audit records for playlist-building later.
 - Spotify Web API calls are server-only.
 - Playback/queue data is cached server-side on an interval to reduce rate-limit risk.
 
@@ -80,10 +81,14 @@ open-playlist/
 ## Storage
 - `storage/session_store.json`: OAuth tokens + expiry.
 - `storage/queue_store.json`: active playlist id/name, track list (including per-track votes), current index, autoplay state, vote-sort state, last error, and device info. Autoplay and vote-sort states are restored from this file on server start; both default to off if the file is empty or missing.
+- `storage/user_adds.jsonl`: JSONL log of user-added tracks.
+- `storage/user_likes.jsonl`: JSONL log of user likes.
+- `storage/user_dislikes.jsonl`: JSONL log of user dislikes.
 - Storage paths can be overridden via `SESSION_STORE` and `QUEUE_STORE` environment variables.
 
 ## Configuration
 - `.env` supports `LOG_LEVEL` (`DEBUG`, `INFO`, `WARN`, `ERROR`) to control server log verbosity; invalid or missing values default to `INFO`.
+- Optional `ACTION_LOG_DIR`, `ADD_LOG_FILE`, `LIKE_LOG_FILE`, and `DISLIKE_LOG_FILE` override where action JSONL logs are written.
 - There is no env-based default playlist; active waiting-list playlist selection is managed via queue endpoints and stored in `queue_store.json`.
 - When a user switches device in the UI, the server stores `activeDeviceId` and `activeDeviceName` in `queue_store.json` and broadcasts the selected device via the devices stream.
 
