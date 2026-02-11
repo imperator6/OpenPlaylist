@@ -18,6 +18,8 @@ open-playlist/
 │   │   └── session.js
 │   └── css/
 │       └── styles.css      # Application styles
+│   └── images/
+│       └── share-card.png  # Social share preview image
 ├── storage/                 # Data persistence (gitignored)
 │   ├── session_store.json  # OAuth tokens
 │   └── queue_store.json    # Playlist state
@@ -102,3 +104,4 @@ open-playlist/
 - A shared client script (`/js/pwa.js`) registers a service worker.
 - A service worker (`/sw.js`) caches core app shell assets and keeps `/api/*` requests network-only.
 - PWA icons are served from `/icons/icon-192.png`, `/icons/icon-512.png`, and `/icons/apple-touch-icon.png`.
+ - Social share images are served from `/images/share-card.png`.

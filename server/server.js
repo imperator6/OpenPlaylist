@@ -1091,6 +1091,12 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/manifest.webmanifest") {
     return readStaticFile(path.join(__dirname, "..", "public", "manifest.webmanifest"), res);
   }
+  if (pathname === "/images/share-card.png") {
+    return readStaticFile(path.join(__dirname, "..", "public", "images", "share-card.png"), res);
+  }
+  if (pathname === "/images/party.png") {
+    return readStaticFile(path.join(__dirname, "..", "public", "images", "party.png"), res);
+  }
   if (pathname === "/icons/icon-192.png") {
     return readStaticFile(path.join(__dirname, "..", "public", "icons", "icon-192.png"), res);
   }
